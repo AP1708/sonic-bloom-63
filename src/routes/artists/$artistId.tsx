@@ -115,7 +115,11 @@ function ArtistPage() {
                 isPlaying={player.isPlaying}
                 liked={isLiked(track.id)}
                 onPlay={() => player.playTrack(track, tracks)}
-                onLike={user ? () => toggleLike.mutate(track) : undefined}
+                onLike={
+                  user
+                    ? () => toggleLike.mutate({ track, liked: isLiked(track.id) })
+                    : undefined
+                }
               />
             ))}
           </section>
