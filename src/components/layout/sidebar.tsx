@@ -17,7 +17,7 @@ const NAV = [
   { to: "/search", label: "Search", icon: Search },
   { to: "/library", label: "Your library", icon: Library },
   { to: "/liked", label: "Liked songs", icon: Heart },
-] as const;
+] as { to: string; label: string; icon: typeof Home; exact?: boolean }[];
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
