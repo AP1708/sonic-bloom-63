@@ -7,10 +7,12 @@ import {
   ListPlus,
   Search,
   Music4,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaylists } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
+import { useIsAdmin } from "@/hooks/use-admin";
 
 const NAV = [
   { to: "/", label: "Home", icon: Home, exact: true },
@@ -28,6 +30,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const { user } = useSession();
   const { data: playlists } = usePlaylists(user?.id);
+  const { data: isAdmin } = useIsAdmin(user?.id);
 
   return (
     <nav className="flex h-full w-64 shrink-0 flex-col gap-6 border-r border-border bg-surface px-4 py-6">
@@ -57,6 +60,23 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             </li>
           );
         })}
+        {isAdmin ? (
+          <li>
+            <Link
+              to="/admin"
+              onClick={onNavigate}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+                pathname.startsWith("/admin")
+                  ? "bg-surface-raised text-foreground"
+                  : "text-muted-foreground hover:bg-surface-raised hover:text-foreground",
+              )}
+            >
+              <ShieldCheck className={cn("size-4", pathname.startsWith("/admin") && "text-primary")} />
+              Admin
+            </Link>
+          </li>
+        ) : null}
       </ul>
 
       <div className="flex min-h-0 flex-1 flex-col gap-2">
