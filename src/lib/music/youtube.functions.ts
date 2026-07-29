@@ -53,6 +53,16 @@ export const searchYouTube = createServerFn({ method: "GET" })
     if (!apiKey) throw new Error("YouTube is not configured yet.");
     if (!data.query.trim()) return [];
 
+    const { cacheKey, readCache, writeCache, writeQuotaMiss, dedupe } = await import(
+      "./youtube.server"
+    );
+    const key = cacheKey(data.query, data.limit);
+    const cached = readCache(key);
+    if (cached) return cached;
+
+    return dedupe(key, async () => {
+
+
     const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
     searchUrl.searchParams.set("part", "snippet");
     searchUrl.searchParams.set("type", "video");
@@ -66,17 +76,25 @@ export const searchYouTube = createServerFn({ method: "GET" })
     if (!searchRes.ok) {
       const body = await searchRes.text();
       console.error(`YouTube search failed [${searchRes.status}]: ${body}`);
-      // Quota / rate limit: degrade quietly so the other sources still render.
-      if (searchRes.status === 429) return [];
+      // Quota / rate limit: degrade quietly so the other sources still render,
+      // and remember the miss briefly so we stop hammering the API.
+      if (searchRes.status === 429) {
+        writeQuotaMiss(key);
+        return [];
+      }
       if (searchRes.status === 400 || searchRes.status === 403) {
         // 403 is also how the Data API reports quotaExceeded / rateLimitExceeded.
-        if (/quota|rateLimit/i.test(body)) return [];
+        if (/quota|rateLimit/i.test(body)) {
+          writeQuotaMiss(key);
+          return [];
+        }
         throw new Error(
           "YouTube rejected the API key — check that it is valid and that YouTube Data API v3 is enabled.",
         );
       }
       throw new Error(`YouTube search failed (${searchRes.status})`);
     }
+
     const searchJson = (await searchRes.json()) as {
       items?: {
         id: { videoId: string };
@@ -89,7 +107,11 @@ export const searchYouTube = createServerFn({ method: "GET" })
     };
 
     const items = (searchJson.items ?? []).filter((item) => item.id?.videoId);
-    if (!items.length) return [];
+    if (!items.length) {
+      writeCache(key, []);
+      return [];
+    }
+
 
     // Second call: durations (not returned by search).
     const detailsUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
@@ -108,20 +130,24 @@ export const searchYouTube = createServerFn({ method: "GET" })
       }
     }
 
-    return items.map((item) => {
-      const videoId = item.id.videoId;
-      const { title, artist } = splitTitle(item.snippet.title, item.snippet.channelTitle);
-      const thumbs = item.snippet.thumbnails ?? {};
-      return {
-        id: `yt-${videoId}`,
-        source: "youtube" as const,
-        title,
-        artist: artist || "YouTube",
-        artworkUrl: (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? null,
-        durationSec: durations.get(videoId) ?? 0,
-        audioUrl: null,
-        youtubeVideoId: videoId,
-        externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
-      };
+      const tracks = items.map((item) => {
+        const videoId = item.id.videoId;
+        const { title, artist } = splitTitle(item.snippet.title, item.snippet.channelTitle);
+        const thumbs = item.snippet.thumbnails ?? {};
+        return {
+          id: `yt-${videoId}`,
+          source: "youtube" as const,
+          title,
+          artist: artist || "YouTube",
+          artworkUrl: (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? null,
+          durationSec: durations.get(videoId) ?? 0,
+          audioUrl: null,
+          youtubeVideoId: videoId,
+          externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        };
+      });
+      writeCache(key, tracks);
+      return tracks;
     });
   });
+
