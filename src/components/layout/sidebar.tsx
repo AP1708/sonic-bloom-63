@@ -63,10 +63,16 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               >
                 <item.icon className={cn("size-4", active && "text-primary")} />
                 {item.label}
+                {item.to === "/downloads" && offlineIds.size ? (
+                  <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                    {offlineIds.size}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
         })}
+
         {isAdmin ? (
           <li>
             <Link

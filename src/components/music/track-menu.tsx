@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Check,
   Download,
   Heart,
   ListEnd,
@@ -7,6 +8,7 @@ import {
   ListStart,
   MoreHorizontal,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,9 +28,11 @@ import {
   usePlaylists,
   useToggleLike,
 } from "@/hooks/use-library";
+import { useOffline, useOfflineIds } from "@/hooks/use-offline";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/lib/music/types";
+
 
 export function TrackMenu({
   track,
