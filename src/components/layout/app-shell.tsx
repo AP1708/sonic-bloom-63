@@ -1,16 +1,19 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
 import { SpotifyConnectButton } from "@/components/music/spotify-connect";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { useTheme } from "@/components/theme/theme";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
 import { useLikedSongs, useToggleLike } from "@/hooks/use-library";
 import { supabase } from "@/integrations/supabase/client";
 import { initials } from "@/lib/format";
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);
@@ -83,20 +86,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-3">
+              <ThemeToggle className="hidden sm:flex" />
+              <MobileThemeToggle />
               <SpotifyConnectButton />
               {user ? (
                 <div className="flex items-center gap-3">
-                <span className="grid size-8 place-items-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
-                  {initials(user.user_metadata?.display_name ?? user.email)}
-                </span>
-                <button
-                  type="button"
-                  onClick={signOut}
-                  className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <LogOut className="size-3.5" /> Sign out
-                </button>
-              </div>
+                  <span className="grid size-8 place-items-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
+                    {initials(user.user_metadata?.display_name ?? user.email)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground sm:flex"
+                  >
+                    <LogOut className="size-3.5" /> Sign out
+                  </button>
+                </div>
               ) : (
                 <Link
                   to="/auth"
@@ -126,5 +131,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       />
       <FullscreenPlayer />
     </div>
+  );
+}
+
+function MobileThemeToggle() {
+  const { resolved, toggle } = useTheme();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={resolved === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      className="grid size-8 place-items-center rounded-full border border-border bg-surface text-muted-foreground transition-colors hover:text-foreground sm:hidden"
+    >
+      {resolved === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
   );
 }

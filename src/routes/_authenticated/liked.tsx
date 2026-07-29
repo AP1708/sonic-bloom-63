@@ -31,7 +31,7 @@ function LikedPage() {
     <AppShell>
       <div className="mx-auto flex max-w-5xl flex-col gap-8">
         <header className="flex items-end gap-6">
-          <div className="ember-glow grid size-40 place-items-center rounded-2xl bg-primary/15">
+          <div className="mint-glow grid size-40 place-items-center rounded-2xl bg-primary/15">
             <Heart className="size-14 fill-primary text-primary" />
           </div>
           <div className="flex flex-col gap-2">

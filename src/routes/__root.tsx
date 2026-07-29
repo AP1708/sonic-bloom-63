@@ -18,6 +18,8 @@ import {
   hydrateQueryCache,
   persistQueryCache,
 } from "@/lib/query-persist";
+import { ThemeProvider, ThemeScript } from "@/components/theme/theme";
+
 
 function NotFoundComponent() {
   return (
@@ -121,9 +123,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
+        <ThemeScript />
       </head>
       <body>
         {children}
@@ -158,10 +161,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <PlayerProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
-      </PlayerProvider>
+      <ThemeProvider>
+        <PlayerProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+        </PlayerProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

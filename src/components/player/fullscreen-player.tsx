@@ -13,13 +13,15 @@ export function FullscreenPlayer() {
   const pct = duration ? (player.progressSec / duration) * 100 : 0;
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col"
-      style={{
-        backgroundImage: `radial-gradient(80% 60% at 50% 0%, oklch(0.32 0.1 ${hue}) 0%, oklch(0.12 0.01 285) 70%)`,
-      }}
-    >
-      <header className="flex items-center justify-between px-6 py-5">
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: `radial-gradient(80% 60% at 50% 0%, oklch(0.32 0.1 ${hue}) 0%, transparent 70%)`,
+          opacity: "var(--player-glow-opacity)",
+        }}
+      />
+      <header className="relative flex items-center justify-between px-6 py-5">
         <span className="label-mono">Now playing</span>
         <button
           type="button"

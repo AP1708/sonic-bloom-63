@@ -25,7 +25,7 @@ export function Artwork({ seed, src, alt, className, rounded = "rounded-xl" }: A
         src
           ? undefined
           : {
-              backgroundImage: `radial-gradient(120% 120% at 20% 10%, oklch(0.55 0.16 ${hue}) 0%, oklch(0.28 0.08 ${(hue + 40) % 360}) 55%, oklch(0.18 0.03 285) 100%)`,
+              backgroundImage: `radial-gradient(120% 120% at 20% 10%, oklch(var(--artwork-inner) 0.16 ${hue}) 0%, oklch(var(--artwork-mid) 0.08 ${(hue + 40) % 360}) 55%, oklch(var(--artwork-outer) 0.03 var(--artwork-outer-hue)) 100%)`,
             }
       }
     >
