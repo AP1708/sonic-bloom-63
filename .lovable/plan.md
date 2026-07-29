@@ -1,51 +1,48 @@
 ## Goal
 
-Three changes to the player experience:
+An offline mix that keeps itself fresh: the app looks at what you've been listening to and which artists you play most, then downloads matching songs in the background so they're available with no connection.
 
-1. Drop the pop-out (picture-in-picture) mini player entirely.
-2. When a song is open in the fullscreen player, show the play queue right there.
-3. Keep the queue alive automatically — when it runs low, append songs that match the current track's artist and style.
+Note on what can actually be stored: only Archive/Indian-catalog tracks have a direct audio stream that can be saved offline. Spotify and YouTube tracks can be pinned (artwork + metadata cached so they appear and queue instantly), but their audio must still stream — their terms don't allow local copies. Smart Downloads will therefore prefer archive tracks for real offline audio and mark the rest as "streaming only".
 
-## 1. Remove picture-in-picture
+## 1. Offline store (new foundation — none exists today)
 
-- Delete `src/components/player/pip-player.tsx`.
-- Remove the pop-out button and `usePictureInPicture` usage from `src/components/player/player-bar.tsx` and `src/components/player/fullscreen-player.tsx`.
-- Remove `PictureInPictureProvider` from `src/routes/__root.tsx`.
-- Leave lock-screen / media-key controls (`use-media-session.ts`) untouched — those are what keep audio going with the screen off.
+New `src/lib/offline/store.ts` on IndexedDB (`sonance-offline`):
 
-## 2. Queue inside the fullscreen player
+- `tracks` — track metadata + reason (`manual` | `smart`) + timestamps
+- `audio` — audio Blobs keyed by track id
+- `artwork` — small image Blobs
 
-Restructure `fullscreen-player.tsx` into a two-part layout:
+API: `saveTrack`, `getAudioBlob`, `listOffline`, `removeTrack`, `usageBytes`, `pruneTo(limitBytes)`.
 
-```text
-desktop                              mobile
-+----------------+--------------+    [ artwork + controls ]
-|  artwork       |  Up next     |    [ Up next  |  Lyrics ] tabs
-|  title/artist  |  queue list  |    [ scrollable list      ]
-|  seek + ctrls  |  ...         |
-+----------------+--------------+
-```
+`src/hooks/use-offline.ts` exposes the list, per-track download state, and totals; the player checks the store first and plays a blob URL when present, so downloaded songs work with no network.
 
-- A right-hand "Up next" column on large screens; on phones a tab strip under the controls switching between **Up next** and **Lyrics**, with the list scrolling under the transport controls.
-- Each queue row: artwork, title, artist, duration, source tag; the playing row is highlighted; tapping a row jumps to it; each row gets a remove button, plus a Clear action for the whole queue.
-- The queue rows reuse the existing queue/lyrics rendering from `side-panel.tsx` by extracting them into shared components (`QueueList`, `LyricsPane`) so the docked side panel and the fullscreen view stay in sync and there is no duplicated logic.
+## 2. Listening history
 
-## 3. Auto-queue related songs
+`recently_played` already exists but is capped and unweighted. Add a `listening_history` table (user, track metadata, played_at, seconds_played, completed) written by the existing play-tracking path in `player-provider.tsx`.
 
-New module `src/lib/music/related.ts` plus wiring in `player-provider.tsx`:
+Derive an artist affinity score: recent plays weigh more (time decay), completed plays more than skips. Exposed via `src/lib/music/taste.ts` as `topArtists()` and `topTracks()`.
 
-- Trigger: whenever there are fewer than 3 tracks left after the current one and autoplay-radio is on.
-- Candidate sources, in order:
-  1. Same artist — search the artist name across the catalog (Archive/Indian catalog first, since those play instantly), excluding tracks already in the queue or recently played.
-  2. Similar songs — search using the track title's key words plus the artist, taking results from Spotify/YouTube/Archive via the existing `searchAll`.
-  3. Fallback — tracks from the same collection/shelf in the local catalog.
-- Score and de-duplicate: prefer same-artist matches, then same-source matches, drop anything whose id is already queued, cap at ~10 appended tracks per top-up.
-- Appended tracks show a subtle "Radio" / "Suggested" label in the queue list so it's clear they were added automatically.
-- A toggle in the queue header ("Autoplay similar songs") turns the behaviour off; the choice is remembered locally.
-- Failures are silent — if search is rate-limited, the queue simply doesn't grow and playback is unaffected.
+## 3. Smart Downloads engine
+
+`src/lib/offline/smart-downloads.ts`:
+
+1. Build a target list: recent favourites + liked songs + top-artist tracks pulled through the existing `findRelatedTracks` / `searchAll` abstraction.
+2. Rank by affinity, keep the top N that fit the storage budget, preferring downloadable archive tracks.
+3. Diff against what's already stored: download what's new, delete smart items that fell out of the list (manual downloads are never auto-deleted).
+4. Run on app start (if stale > 12h), on reconnect, and via a manual "Refresh now" — always de-bounced, and it defers when the browser reports a metered/save-data connection.
+
+Downloads run sequentially with progress, and failures are silent retries next cycle.
+
+## 4. UI
+
+- New route `/downloads`: storage meter, "Smart mix" section (auto-managed) and "Your downloads" (manual), each row with a remove action and an offline badge.
+- Settings block on the same page: enable Smart Downloads, storage limit slider (500 MB / 1 GB / 2 GB / custom), Wi-Fi-only toggle, refresh frequency.
+- Download / Remove download action added to the existing `TrackMenu`, plus an offline indicator in `TrackRow` and the player bar.
+- Sidebar link with a small "offline ready" count.
 
 ## Technical notes
 
-- `related.ts` runs client-side through the existing `searchAll` provider abstraction, so it inherits the YouTube key-rotation and caching already in place.
-- Top-up is de-bounced and guarded by an in-flight ref so track changes can't fire several searches at once.
-- Queue additions go through the existing `enqueue` state path; no schema or backend changes are needed.
+- Schema change: one new table with RLS scoped to `auth.uid()` and grants for `authenticated`.
+- Playback: `resolve-playback.ts` gains an offline-first branch before any provider resolution.
+- Storage safety: request `navigator.storage.persist()`, respect `estimate()` quota, prune oldest smart items first.
+- No copyrighted audio is ever stored — only public-domain archive streams; Spotify/YouTube entries stay metadata-only.
