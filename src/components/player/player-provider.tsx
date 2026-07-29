@@ -66,6 +66,8 @@ interface PlayerState {
   fullscreen: boolean;
 }
 
+export type PlaybackStatus = "idle" | "resolving" | "buffering" | "ready" | "unavailable";
+
 interface PlayerActions {
   playTrack: (track: Track, contextQueue?: Track[]) => void;
   playCollection: (tracks: Track[], startIndex?: number) => void;
@@ -82,9 +84,17 @@ interface PlayerActions {
   enqueue: (track: Track) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
+  retrySource: () => void;
 }
 
-const PlayerContext = createContext<(PlayerState & PlayerActions) | null>(null);
+interface PlayerStatus {
+  status: PlaybackStatus;
+  statusLabel: string | null;
+  activeSource: "spotify" | "stream" | "youtube" | "preview" | null;
+}
+
+const PlayerContext = createContext<(PlayerState & PlayerActions & PlayerStatus) | null>(null);
+
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
   const { user } = useSession();
