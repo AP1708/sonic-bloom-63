@@ -216,10 +216,7 @@ export function PlayerBar({
             className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
           />
         </div>
-          >
-            <PictureInPicture2 className="size-4" />
-          </button>
-        )}
+
         <button
           type="button"
           onClick={() => player.setFullscreen(true)}
