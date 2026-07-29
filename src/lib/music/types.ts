@@ -1,0 +1,49 @@
+export type MusicSource = "spotify" | "youtube";
+
+export interface Track {
+  id: string;
+  source: MusicSource;
+  title: string;
+  artist: string;
+  album?: string;
+  artworkUrl?: string | null;
+  durationSec: number;
+  /** YouTube video id, when the track is playable through the IFrame Player API. */
+  youtubeVideoId?: string | null;
+  /** Canonical link back to the source platform (required by both platforms' terms). */
+  externalUrl?: string | null;
+}
+
+export interface Collection {
+  id: string;
+  title: string;
+  subtitle: string;
+  kind: "album" | "playlist" | "mix";
+  source: MusicSource;
+  trackIds: string[];
+  artworkUrl?: string | null;
+}
+
+export interface Shelf {
+  id: string;
+  title: string;
+  caption?: string;
+  items: Collection[];
+}
+
+export interface SearchOptions {
+  source?: MusicSource | "all";
+  limit?: number;
+  signal?: AbortSignal;
+}
+
+export interface SearchResults {
+  tracks: Track[];
+  /** Sources that failed or are not configured, surfaced in the UI instead of failing the search. */
+  degraded: { source: MusicSource; reason: string }[];
+}
+
+export interface LyricLine {
+  timeSec: number;
+  text: string;
+}

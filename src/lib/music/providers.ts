@@ -1,0 +1,119 @@
+import { DEMO_TRACKS } from "./catalog";
+import type { MusicSource, SearchOptions, SearchResults, Track } from "./types";
+
+/**
+ * API abstraction layer.
+ *
+ * Each source implements the same `MusicProvider` contract. Real credentials
+ * are optional: when a provider has no key configured it reports itself as
+ * unavailable and `searchAll` degrades gracefully instead of throwing, so the
+ * UI keeps working while integrations are being connected.
+ *
+ * Compliance notes:
+ * - Only official APIs are used (Spotify Web API, YouTube Data API v3).
+ * - We cache metadata only. No copyrighted media is downloaded or stored.
+ * - Playback happens in the official embedded players; every track keeps an
+ *   `externalUrl` back to the source platform for attribution.
+ */
+
+export interface MusicProvider {
+  id: MusicSource;
+  label: string;
+  isConfigured(): boolean;
+  search(query: string, options?: SearchOptions): Promise<Track[]>;
+}
+
+function matches(track: Track, query: string) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    track.title.toLowerCase().includes(q) ||
+    track.artist.toLowerCase().includes(q) ||
+    (track.album ?? "").toLowerCase().includes(q)
+  );
+}
+
+function demoSearch(source: MusicSource, query: string, limit: number): Track[] {
+  return DEMO_TRACKS.filter((t) => t.source === source && matches(t, query)).slice(0, limit);
+}
+
+export const spotifyProvider: MusicProvider = {
+  id: "spotify",
+  label: "Spotify",
+  isConfigured: () => Boolean(import.meta.env.VITE_SPOTIFY_ENABLED),
+  async search(query, options = {}) {
+    const limit = options.limit ?? 20;
+    if (!spotifyProvider.isConfigured()) return demoSearch("spotify", query, limit);
+    const res = await fetch(
+      `/api/music/spotify/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+      { signal: options.signal },
+    );
+    if (!res.ok) throw new Error(`Spotify search failed (${res.status})`);
+    return (await res.json()) as Track[];
+  },
+};
+
+export const youtubeProvider: MusicProvider = {
+  id: "youtube",
+  label: "YouTube",
+  isConfigured: () => Boolean(import.meta.env.VITE_YOUTUBE_ENABLED),
+  async search(query, options = {}) {
+    const limit = options.limit ?? 20;
+    if (!youtubeProvider.isConfigured()) return demoSearch("youtube", query, limit);
+    const res = await fetch(
+      `/api/music/youtube/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+      { signal: options.signal },
+    );
+    if (!res.ok) throw new Error(`YouTube search failed (${res.status})`);
+    return (await res.json()) as Track[];
+  },
+};
+
+export const PROVIDERS: MusicProvider[] = [spotifyProvider, youtubeProvider];
+
+export async function searchAll(query: string, options: SearchOptions = {}): Promise<SearchResults> {
+  const source = options.source ?? "all";
+  const active = source === "all" ? PROVIDERS : PROVIDERS.filter((p) => p.id === source);
+
+  const settled = await Promise.allSettled(
+    active.map((provider) => provider.search(query, options)),
+  );
+
+  const tracks: Track[] = [];
+  const degraded: SearchResults["degraded"] = [];
+
+  settled.forEach((result, index) => {
+    const provider = active[index];
+    if (result.status === "fulfilled") {
+      tracks.push(...result.value);
+    } else {
+      degraded.push({
+        source: provider.id,
+        reason: result.reason instanceof Error ? result.reason.message : "Unknown error",
+      });
+    }
+  });
+
+  // Interleave sources so neither platform dominates the top of the results.
+  const bySource = new Map<MusicSource, Track[]>();
+  for (const track of tracks) {
+    const bucket = bySource.get(track.source) ?? [];
+    bucket.push(track);
+    bySource.set(track.source, bucket);
+  }
+  const interleaved: Track[] = [];
+  let cursor = 0;
+  let added = true;
+  while (added) {
+    added = false;
+    for (const bucket of bySource.values()) {
+      if (bucket[cursor]) {
+        interleaved.push(bucket[cursor]);
+        added = true;
+      }
+    }
+    cursor += 1;
+  }
+
+  return { tracks: interleaved, degraded };
+}
