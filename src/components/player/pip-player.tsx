@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { Pause, Play, SkipBack, SkipForward } from "lucide-react";
 
@@ -42,7 +50,7 @@ function cloneStyles(target: Window) {
  * Floating always-on-top mini player. Playback itself keeps running in the main
  * tab, so opening or closing the window never interrupts the audio.
  */
-export function usePictureInPicture() {
+function usePiPWindow() {
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [supported, setSupported] = useState(false);
 
@@ -76,9 +84,32 @@ export function usePictureInPicture() {
   return { supported, isOpen: Boolean(pipWindow), pipWindow, toggle, open, close };
 }
 
-export function PiPPortal({ pipWindow }: { pipWindow: Window | null }): ReactNode {
-  if (!pipWindow) return null;
-  return createPortal(<MiniPlayer />, pipWindow.document.body);
+interface PiPContextValue {
+  supported: boolean;
+  isOpen: boolean;
+  toggle: () => void;
+}
+
+const PiPContext = createContext<PiPContextValue>({
+  supported: false,
+  isOpen: false,
+  toggle: () => {},
+});
+
+export function usePictureInPicture() {
+  return useContext(PiPContext);
+}
+
+/** Provides the pop-out control and renders the mini player into the PiP window. */
+export function PictureInPictureProvider({ children }: { children: ReactNode }) {
+  const { supported, isOpen, pipWindow, toggle } = usePiPWindow();
+  const value = useMemo(() => ({ supported, isOpen, toggle }), [supported, isOpen, toggle]);
+  return (
+    <PiPContext.Provider value={value}>
+      {children}
+      {pipWindow ? createPortal(<MiniPlayer />, pipWindow.document.body) : null}
+    </PiPContext.Provider>
+  );
 }
 
 function MiniPlayer() {
