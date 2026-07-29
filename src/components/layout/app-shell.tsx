@@ -87,20 +87,21 @@ export function AppShell({ children }: { children: ReactNode }) {
 
             <div className="flex items-center gap-3">
               <ThemeToggle className="hidden sm:flex" />
+              <MobileThemeToggle />
               <SpotifyConnectButton />
               {user ? (
                 <div className="flex items-center gap-3">
-                <span className="grid size-8 place-items-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
-                  {initials(user.user_metadata?.display_name ?? user.email)}
-                </span>
-                <button
-                  type="button"
-                  onClick={signOut}
-                  className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <LogOut className="size-3.5" /> Sign out
-                </button>
-              </div>
+                  <span className="grid size-8 place-items-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
+                    {initials(user.user_metadata?.display_name ?? user.email)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={signOut}
+                    className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground sm:flex"
+                  >
+                    <LogOut className="size-3.5" /> Sign out
+                  </button>
+                </div>
               ) : (
                 <Link
                   to="/auth"
