@@ -188,10 +188,15 @@ export async function probeApiKeys(): Promise<KeyHealthReport[]> {
   const keys = apiKeys();
   await Promise.all(
     keys.map(async (key) => {
-      const url = new URL("https://www.googleapis.com/youtube/v3/videos");
+      // Probe the *search* endpoint: that's the quota real searches burn
+      // (100 units each), so a videos.list ping would report false health.
+      const url = new URL("https://www.googleapis.com/youtube/v3/search");
       url.searchParams.set("part", "id");
-      url.searchParams.set("id", "dQw4w9WgXcQ");
+      url.searchParams.set("type", "video");
+      url.searchParams.set("maxResults", "1");
+      url.searchParams.set("q", "music");
       url.searchParams.set("key", key);
+
       try {
         const res = await fetch(url);
         if (res.ok) {
