@@ -21,6 +21,7 @@ import { Route as AuthenticatedLikedRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPlaylistPlaylistIdRouteImport } from './routes/_authenticated/playlist.$playlistId'
+import { Route as ApiPublicHooksYoutubeKeyHealthRouteImport } from './routes/api/public/hooks/youtube-key-health'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -82,6 +83,12 @@ const AuthenticatedPlaylistPlaylistIdRoute =
     path: '/playlist/$playlistId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiPublicHooksYoutubeKeyHealthRoute =
+  ApiPublicHooksYoutubeKeyHealthRouteImport.update({
+    id: '/api/public/hooks/youtube-key-health',
+    path: '/api/public/hooks/youtube-key-health',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
+  '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -108,6 +116,7 @@ export interface FileRoutesByTo {
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/artists': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
+  '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -123,6 +132,7 @@ export interface FileRoutesById {
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
+  '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/spotify/callback'
     | '/artists/'
     | '/playlist/$playlistId'
+    | '/api/public/hooks/youtube-key-health'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/spotify/callback'
     | '/artists'
     | '/playlist/$playlistId'
+    | '/api/public/hooks/youtube-key-health'
   id:
     | '__root__'
     | '/'
@@ -165,6 +177,7 @@ export interface FileRouteTypes {
     | '/spotify/callback'
     | '/artists/'
     | '/_authenticated/playlist/$playlistId'
+    | '/api/public/hooks/youtube-key-health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -176,6 +189,7 @@ export interface RootRouteChildren {
   ArtistsArtistIdRoute: typeof ArtistsArtistIdRoute
   SpotifyCallbackRoute: typeof SpotifyCallbackRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
+  ApiPublicHooksYoutubeKeyHealthRoute: typeof ApiPublicHooksYoutubeKeyHealthRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -264,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlaylistPlaylistIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/youtube-key-health': {
+      id: '/api/public/hooks/youtube-key-health'
+      path: '/api/public/hooks/youtube-key-health'
+      fullPath: '/api/public/hooks/youtube-key-health'
+      preLoaderRoute: typeof ApiPublicHooksYoutubeKeyHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -293,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtistsArtistIdRoute: ArtistsArtistIdRoute,
   SpotifyCallbackRoute: SpotifyCallbackRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
+  ApiPublicHooksYoutubeKeyHealthRoute: ApiPublicHooksYoutubeKeyHealthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

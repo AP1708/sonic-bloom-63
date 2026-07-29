@@ -99,17 +99,25 @@ export function apiKeys(): string[] {
   return Array.from(new Set(raw.map((value) => value.trim()).filter(Boolean)));
 }
 
-/** Keys that are not currently parked for quota, in preferred order. */
+/** Keys that are not currently parked for quota, healthy ones first. */
 export function availableApiKeys(): string[] {
   const all = apiKeys();
   const now = Date.now();
   for (const [key, until] of exhausted) if (until <= now) exhausted.delete(key);
   const live = all.filter((key) => !exhausted.has(key));
-  return live.length ? live : all; // all parked → retry them anyway rather than fail hard
+  const pool = live.length ? live : all; // all parked → retry them anyway rather than fail hard
+  // Prefer keys the health probe last saw working; unknown keys sit in the middle.
+  const rank = (key: string) => {
+    const state = health.get(key);
+    if (!state) return 1;
+    return state.healthy ? 0 : 2;
+  };
+  return [...pool].sort((a, b) => rank(a) - rank(b));
 }
 
 export function markKeyExhausted(key: string): void {
   exhausted.set(key, Date.now() + msUntilQuotaReset());
+  health.set(key, { healthy: false, checkedAt: Date.now(), reason: "quota exceeded" });
 }
 
 /** True when every configured key is currently parked for quota. */
@@ -119,4 +127,89 @@ export function allKeysExhausted(): boolean {
   const now = Date.now();
   return all.every((key) => (exhausted.get(key) ?? 0) > now);
 }
+
+/* ------------------------------------------------------------------ *
+ * Key health probing
+ *
+ * A background job (pg_cron → /api/public/hooks/youtube-key-health) pings
+ * each configured key with a 1-unit `videos.list` call. Keys that answer
+ * are marked healthy and float to the front of the rotation; keys that
+ * report quota errors are parked until the daily reset, and keys that are
+ * invalid/disabled are marked unhealthy so real searches skip them first.
+ * ------------------------------------------------------------------ */
+
+interface KeyHealth {
+  healthy: boolean;
+  checkedAt: number;
+  reason?: string;
+}
+
+const health = new Map<string, KeyHealth>();
+
+/** Masked identifier so keys are never echoed in responses or logs. */
+export function keyFingerprint(key: string): string {
+  return `…${key.slice(-6)}`;
+}
+
+export function markKeyHealthy(key: string): void {
+  exhausted.delete(key);
+  health.set(key, { healthy: true, checkedAt: Date.now() });
+}
+
+export function markKeyUnhealthy(key: string, reason: string): void {
+  health.set(key, { healthy: false, checkedAt: Date.now(), reason });
+}
+
+export interface KeyHealthReport {
+  key: string;
+  healthy: boolean | null;
+  checkedAt: string | null;
+  reason?: string;
+  parkedUntil: string | null;
+}
+
+export function keyHealthReport(): KeyHealthReport[] {
+  const now = Date.now();
+  return apiKeys().map((key) => {
+    const state = health.get(key);
+    const until = exhausted.get(key);
+    return {
+      key: keyFingerprint(key),
+      healthy: state ? state.healthy : null,
+      checkedAt: state ? new Date(state.checkedAt).toISOString() : null,
+      reason: state?.reason,
+      parkedUntil: until && until > now ? new Date(until).toISOString() : null,
+    };
+  });
+}
+
+/** Cheap availability probe (1 quota unit per key). */
+export async function probeApiKeys(): Promise<KeyHealthReport[]> {
+  const keys = apiKeys();
+  await Promise.all(
+    keys.map(async (key) => {
+      const url = new URL("https://www.googleapis.com/youtube/v3/videos");
+      url.searchParams.set("part", "id");
+      url.searchParams.set("id", "dQw4w9WgXcQ");
+      url.searchParams.set("key", key);
+      try {
+        const res = await fetch(url);
+        if (res.ok) {
+          markKeyHealthy(key);
+          return;
+        }
+        const body = await res.text();
+        if (res.status === 429 || (res.status === 403 && /quota|rateLimit/i.test(body))) {
+          markKeyExhausted(key);
+          return;
+        }
+        markKeyUnhealthy(key, `HTTP ${res.status}`);
+      } catch (error) {
+        markKeyUnhealthy(key, error instanceof Error ? error.message : "network error");
+      }
+    }),
+  );
+  return keyHealthReport();
+}
+
 
