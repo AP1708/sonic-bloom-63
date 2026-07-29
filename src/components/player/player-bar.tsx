@@ -46,10 +46,34 @@ export function PlayerBar({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{track.title}</p>
               <div className="mt-0.5 flex items-center gap-2">
-                <p className="truncate text-xs text-muted-foreground">{track.artist}</p>
-                <SourceTag source={track.source} />
+                {player.statusLabel ? (
+                  <>
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      {player.status !== "unavailable" && (
+                        <Loader2 className="size-3 shrink-0 animate-spin" />
+                      )}
+                      <span className="truncate">{player.statusLabel}</span>
+                    </span>
+                    {player.status === "unavailable" && (
+                      <button
+                        type="button"
+                        onClick={player.retrySource}
+                        className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <RotateCw className="size-3" />
+                        Retry
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="truncate text-xs text-muted-foreground">{track.artist}</p>
+                    <SourceTag source={track.source} />
+                  </>
+                )}
               </div>
             </div>
+
             {onToggleLike && (
               <button
                 type="button"
