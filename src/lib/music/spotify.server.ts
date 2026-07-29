@@ -85,7 +85,8 @@ export async function searchSpotifyTracks(query: string, limit: number): Promise
   const url = new URL("https://api.spotify.com/v1/search");
   url.searchParams.set("q", query);
   url.searchParams.set("type", "track");
-  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 50) : 20;
+  // Development-mode Spotify apps reject page sizes above 10 with "Invalid limit".
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 10) : 10;
   url.searchParams.set("limit", String(safeLimit));
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
