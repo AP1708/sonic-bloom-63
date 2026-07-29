@@ -1,6 +1,8 @@
 import { DEMO_TRACKS } from "./catalog";
 import { loadFullCatalog, searchFullCatalog } from "./full-catalog";
+import { searchYouTube } from "./youtube.functions";
 import type { MusicSource, SearchOptions, SearchResults, Track } from "./types";
+
 
 /**
  * API abstraction layer.
@@ -57,18 +59,14 @@ export const spotifyProvider: MusicProvider = {
 export const youtubeProvider: MusicProvider = {
   id: "youtube",
   label: "YouTube",
-  isConfigured: () => Boolean(import.meta.env.VITE_YOUTUBE_ENABLED),
+  // The API key lives server-side; the server function reports if it is missing.
+  isConfigured: () => true,
   async search(query, options = {}) {
     const limit = options.limit ?? 20;
-    if (!youtubeProvider.isConfigured()) return demoSearch("youtube", query, limit);
-    const res = await fetch(
-      `/api/music/youtube/search?q=${encodeURIComponent(query)}&limit=${limit}`,
-      { signal: options.signal },
-    );
-    if (!res.ok) throw new Error(`YouTube search failed (${res.status})`);
-    return (await res.json()) as Track[];
+    return searchYouTube({ data: { query, limit } });
   },
 };
+
 
 /** Public-domain recordings streamed from the Internet Archive. Always available. */
 export const archiveProvider: MusicProvider = {

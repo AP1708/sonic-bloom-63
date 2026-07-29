@@ -16,6 +16,37 @@ import { useSession } from "@/hooks/use-session";
 export type SidePanel = "queue" | "lyrics" | null;
 export type RepeatMode = "off" | "all" | "one";
 
+/** Minimal surface of the official YouTube IFrame Player API that we use. */
+interface YTPlayer {
+  loadVideoById: (id: string) => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  setVolume: (value: number) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  destroy: () => void;
+}
+
+let ytApiPromise: Promise<void> | null = null;
+
+/** Loads the IFrame Player API script once, client-side only. */
+function loadYouTubeApi(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  const w = window as unknown as { YT?: { Player?: unknown }; onYouTubeIframeAPIReady?: () => void };
+  if (w.YT?.Player) return Promise.resolve();
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise<void>((resolve) => {
+    w.onYouTubeIframeAPIReady = () => resolve();
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    script.async = true;
+    document.head.appendChild(script);
+  });
+  return ytApiPromise;
+}
+
+
 interface PlayerState {
   queue: Track[];
   index: number;
@@ -68,10 +99,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const loggedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ytHostRef = useRef<HTMLDivElement | null>(null);
+  const ytPlayerRef = useRef<YTPlayer | null>(null);
+  const [ytReady, setYtReady] = useState(false);
 
   const currentAudioUrl = state.current
     ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
+  const currentVideoId = !currentAudioUrl ? (state.current?.youtubeVideoId ?? null) : null;
+
 
   /** Advance the queue when a track finishes (shared by the audio element and the clock). */
   const handleEnded = useCallback(() => {
@@ -120,9 +156,83 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.volume = state.muted ? 0 : state.volume;
   }, [state.volume, state.muted]);
 
-  // Playback clock for embedded-player sources (Spotify/YouTube) without a stream.
+  // ---- YouTube IFrame Player API (official embedded playback) ----
   useEffect(() => {
-    if (!state.isPlaying || !state.current || currentAudioUrl) return;
+    if (!currentVideoId) return;
+    let cancelled = false;
+    void loadYouTubeApi().then(() => {
+      if (cancelled || ytPlayerRef.current || !ytHostRef.current) return;
+      const w = window as unknown as {
+        YT: { Player: new (el: HTMLElement, opts: Record<string, unknown>) => YTPlayer };
+      };
+      ytPlayerRef.current = new w.YT.Player(ytHostRef.current, {
+        height: "100%",
+        width: "100%",
+        playerVars: { autoplay: 0, controls: 0, playsinline: 1, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: () => setYtReady(true),
+          onStateChange: (event: { data: number }) => {
+            if (event.data === 0) handleEnded(); // ENDED
+            if (event.data === 1) setState((prev) => ({ ...prev, isPlaying: true }));
+            if (event.data === 2) setState((prev) => ({ ...prev, isPlaying: false }));
+          },
+        },
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentVideoId, handleEnded]);
+
+  // Load / swap the active video.
+  useEffect(() => {
+    const yt = ytPlayerRef.current;
+    if (!yt || !ytReady) return;
+    if (!currentVideoId) {
+      yt.pauseVideo();
+      return;
+    }
+    yt.loadVideoById(currentVideoId);
+  }, [currentVideoId, ytReady]);
+
+  useEffect(() => {
+    const yt = ytPlayerRef.current;
+    if (!yt || !ytReady || !currentVideoId) return;
+    if (state.isPlaying) yt.playVideo();
+    else yt.pauseVideo();
+  }, [state.isPlaying, currentVideoId, ytReady]);
+
+  useEffect(() => {
+    const yt = ytPlayerRef.current;
+    if (!yt || !ytReady) return;
+    yt.setVolume(Math.round((state.muted ? 0 : state.volume) * 100));
+  }, [state.volume, state.muted, ytReady]);
+
+  // Progress polling for the YouTube player.
+  useEffect(() => {
+    if (!currentVideoId || !ytReady || !state.isPlaying) return;
+    const id = window.setInterval(() => {
+      const yt = ytPlayerRef.current;
+      if (!yt) return;
+      const time = yt.getCurrentTime();
+      const duration = yt.getDuration();
+      setState((prev) => {
+        if (!prev.current) return prev;
+        const current =
+          duration && Math.abs(prev.current.durationSec - duration) > 1
+            ? { ...prev.current, durationSec: Math.round(duration) }
+            : prev.current;
+        const queue =
+          current === prev.current ? prev.queue : prev.queue.map((t, i) => (i === prev.index ? current : t));
+        return { ...prev, current, queue, progressSec: time };
+      });
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [currentVideoId, ytReady, state.isPlaying]);
+
+  // Playback clock for sources without a stream or an embedded player (e.g. Spotify).
+  useEffect(() => {
+    if (!state.isPlaying || !state.current || currentAudioUrl || currentVideoId) return;
     const id = window.setInterval(() => {
       setState((prev) => {
         if (!prev.current) return prev;
@@ -134,16 +244,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [state.isPlaying, state.current, state.index, currentAudioUrl]);
+  }, [state.isPlaying, state.current, state.index, currentAudioUrl, currentVideoId]);
 
   useEffect(() => {
-    if (currentAudioUrl) return;
+    if (currentAudioUrl || currentVideoId) return;
     if (!state.current) return;
     if (state.progressSec >= state.current.durationSec - 1 && state.isPlaying) {
       const id = window.setTimeout(handleEnded, 1000);
       return () => window.clearTimeout(id);
     }
-  }, [state.progressSec, state.current, state.isPlaying, currentAudioUrl, handleEnded]);
+  }, [state.progressSec, state.current, state.isPlaying, currentAudioUrl, currentVideoId, handleEnded]);
+
 
 
   // Recently played history (app data only).
@@ -196,6 +307,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setState((prev) => {
           const clamped = Math.min(Math.max(0, seconds), prev.current?.durationSec ?? 0);
           if (audioRef.current && audioRef.current.src) audioRef.current.currentTime = clamped;
+          if (prev.current?.youtubeVideoId) ytPlayerRef.current?.seekTo(clamped, true);
+
           return { ...prev, progressSec: clamped };
         }),
       setVolume: (value) => setState((prev) => ({ ...prev, volume: value, muted: value === 0 })),
@@ -249,11 +362,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }}
         onEnded={handleEnded}
         onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
-        onPause={() => setState((prev) => ({ ...prev, isPlaying: false }))}
-        onError={() => setState((prev) => ({ ...prev, isPlaying: false }))}
+        onPause={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
+        onError={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
         className="hidden"
       />
+      {/* Official YouTube IFrame player — kept mounted and visible while a video track plays. */}
+      <div
+        className={
+          currentVideoId
+            ? "fixed bottom-28 right-4 z-40 w-44 overflow-hidden rounded-lg border border-border bg-black shadow-lg lg:w-56"
+            : "pointer-events-none fixed h-0 w-0 overflow-hidden opacity-0"
+        }
+      >
+        <div className={currentVideoId ? "aspect-video w-full" : "h-0 w-0"}>
+          <div ref={ytHostRef} className="size-full" />
+        </div>
+      </div>
       {children}
+
     </PlayerContext.Provider>
   );
 }
