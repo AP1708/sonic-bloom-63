@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
+import { SpotifyConnectButton } from "@/components/music/spotify-connect";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
@@ -81,8 +82,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
 
-            {user ? (
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <SpotifyConnectButton />
+              {user ? (
+                <div className="flex items-center gap-3">
                 <span className="grid size-8 place-items-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
                   {initials(user.user_metadata?.display_name ?? user.email)}
                 </span>
@@ -94,15 +97,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <LogOut className="size-3.5" /> Sign out
                 </button>
               </div>
-            ) : (
-              <Link
-                to="/auth"
-                search={{ redirect: router }}
-                className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
-              >
-                Sign in
-              </Link>
-            )}
+              ) : (
+                <Link
+                  to="/auth"
+                  search={{ redirect: router }}
+                  className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
           </header>
 
           <div className="flex min-h-0 flex-1">

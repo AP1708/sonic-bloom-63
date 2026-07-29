@@ -12,6 +12,10 @@ export interface Track {
   audioUrl?: string | null;
   /** YouTube video id, when the track is playable through the IFrame Player API. */
   youtubeVideoId?: string | null;
+  /** Spotify track URI, played through the Web Playback SDK for Premium listeners. */
+  spotifyUri?: string | null;
+  /** 30s preview clip, used as a fallback when the listener has no Premium session. */
+  previewUrl?: string | null;
   /** Canonical link back to the source platform (required by both platforms' terms). */
   externalUrl?: string | null;
 }

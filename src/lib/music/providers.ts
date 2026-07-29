@@ -1,6 +1,7 @@
 import { DEMO_TRACKS } from "./catalog";
 import { loadFullCatalog, searchFullCatalog } from "./full-catalog";
 import { searchYouTube } from "./youtube.functions";
+import { searchSpotify } from "./spotify.functions";
 import type { MusicSource, SearchOptions, SearchResults, Track } from "./types";
 
 
@@ -43,16 +44,11 @@ function demoSearch(source: MusicSource, query: string, limit: number): Track[] 
 export const spotifyProvider: MusicProvider = {
   id: "spotify",
   label: "Spotify",
-  isConfigured: () => Boolean(import.meta.env.VITE_SPOTIFY_ENABLED),
+  // Credentials live server-side; the server function reports if they are missing.
+  isConfigured: () => true,
   async search(query, options = {}) {
     const limit = options.limit ?? 20;
-    if (!spotifyProvider.isConfigured()) return demoSearch("spotify", query, limit);
-    const res = await fetch(
-      `/api/music/spotify/search?q=${encodeURIComponent(query)}&limit=${limit}`,
-      { signal: options.signal },
-    );
-    if (!res.ok) throw new Error(`Spotify search failed (${res.status})`);
-    return (await res.json()) as Track[];
+    return searchSpotify({ data: { query, limit } });
   },
 };
 

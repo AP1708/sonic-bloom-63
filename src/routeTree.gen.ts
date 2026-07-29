@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArtistsIndexRouteImport } from './routes/artists/index'
+import { Route as SpotifyCallbackRouteImport } from './routes/spotify/callback'
 import { Route as ArtistsArtistIdRouteImport } from './routes/artists/$artistId'
 import { Route as AuthenticatedLikedRouteImport } from './routes/_authenticated/liked'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
@@ -48,6 +49,11 @@ const IndexRoute = IndexRouteImport.update({
 const ArtistsIndexRoute = ArtistsIndexRouteImport.update({
   id: '/artists/',
   path: '/artists/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpotifyCallbackRoute = SpotifyCallbackRouteImport.update({
+  id: '/spotify/callback',
+  path: '/spotify/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ArtistsArtistIdRoute = ArtistsArtistIdRouteImport.update({
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
+  '/spotify/callback': typeof SpotifyCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
 }
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
+  '/spotify/callback': typeof SpotifyCallbackRoute
   '/artists': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
 }
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
+  '/spotify/callback': typeof SpotifyCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
 }
@@ -126,6 +135,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/liked'
     | '/artists/$artistId'
+    | '/spotify/callback'
     | '/artists/'
     | '/playlist/$playlistId'
   fileRoutesByTo: FileRoutesByTo
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/liked'
     | '/artists/$artistId'
+    | '/spotify/callback'
     | '/artists'
     | '/playlist/$playlistId'
   id:
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/_authenticated/library'
     | '/_authenticated/liked'
     | '/artists/$artistId'
+    | '/spotify/callback'
     | '/artists/'
     | '/_authenticated/playlist/$playlistId'
   fileRoutesById: FileRoutesById
@@ -162,6 +174,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ArtistsArtistIdRoute: typeof ArtistsArtistIdRoute
+  SpotifyCallbackRoute: typeof SpotifyCallbackRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
 }
 
@@ -207,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/artists'
       fullPath: '/artists/'
       preLoaderRoute: typeof ArtistsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/spotify/callback': {
+      id: '/spotify/callback'
+      path: '/spotify/callback'
+      fullPath: '/spotify/callback'
+      preLoaderRoute: typeof SpotifyCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/artists/$artistId': {
@@ -271,18 +291,9 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ArtistsArtistIdRoute: ArtistsArtistIdRoute,
+  SpotifyCallbackRoute: SpotifyCallbackRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
