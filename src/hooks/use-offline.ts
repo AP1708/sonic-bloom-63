@@ -167,3 +167,28 @@ export function useOfflineAudioUrl(trackId: string | null): string | null {
   }, [trackId]);
   return url;
 }
+
+/**
+ * Keeps the offline mix fresh in the background: on app start when the last
+ * refresh is stale, and again whenever the device comes back online.
+ */
+export function useSmartDownloadScheduler() {
+  const { refreshMix, settings, ready } = useOffline();
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (!ready || !settings.enabled || startedRef.current) return;
+    const staleAfter = settings.refreshHours * 3600_000;
+    if (Date.now() - settings.lastRunAt < staleAfter) return;
+    startedRef.current = true;
+    const timer = window.setTimeout(() => void refreshMix({ silent: true }), 8000);
+    return () => window.clearTimeout(timer);
+  }, [ready, settings.enabled, settings.refreshHours, settings.lastRunAt, refreshMix]);
+
+  useEffect(() => {
+    if (!settings.enabled) return;
+    const onOnline = () => void refreshMix({ silent: true });
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [settings.enabled, refreshMix]);
+}
