@@ -15,7 +15,14 @@ import { spotifyPlayback } from "@/lib/music/spotify-playback";
 import { readSession as readSpotifySession } from "@/lib/music/spotify-auth";
 import { resolveYouTubeVideoId, resolveSpotifyUri } from "@/lib/music/resolve-playback";
 
-import { recordPlay } from "@/hooks/use-library";
+import {
+  RESUME_END_GUARD_SEC,
+  RESUME_MIN_SEC,
+  clearPlaybackPosition,
+  recordPlay,
+  savePlaybackPosition,
+  useLastPlaybackPosition,
+} from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 
 export type SidePanel = "queue" | "lyrics" | null;
@@ -311,10 +318,47 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
 
 
+  // ---- Resume where the listener left off (account-synced) ----
+  const { data: lastPosition } = useLastPlaybackPosition(user?.id);
+  const pendingResumeRef = useRef<{ trackId: string; positionSec: number } | null>(null);
+  const restoredRef = useRef(false);
+  const savedAtRef = useRef(0);
+
+  // Restore the last track once per session, paused and pre-seeked.
+  useEffect(() => {
+    if (restoredRef.current || !user || !lastPosition) return;
+    const { track, positionSec } = lastPosition;
+    if (state.queue.length) return;
+    restoredRef.current = true;
+    if (
+      positionSec < RESUME_MIN_SEC ||
+      (track.durationSec > 0 && positionSec > track.durationSec - RESUME_END_GUARD_SEC)
+    ) {
+      return;
+    }
+    pendingResumeRef.current = { trackId: track.id, positionSec };
+    setState((prev) =>
+      prev.queue.length
+        ? prev
+        : { ...prev, queue: [track], index: 0, current: track, progressSec: positionSec, isPlaying: false },
+    );
+  }, [user, lastPosition, state.queue.length]);
+
+  /** Applies (and consumes) a pending resume offset for the active track. */
+  const takeResumeOffset = useCallback((trackId: string | undefined) => {
+    const pending = pendingResumeRef.current;
+    if (!pending || !trackId || pending.trackId !== trackId) return null;
+    pendingResumeRef.current = null;
+    return pending.positionSec;
+  }, []);
+
   /** Advance the queue when a track finishes (shared by the audio element and the clock). */
   const handleEnded = useCallback(() => {
     setState((prev) => {
       if (!prev.current) return prev;
+      if (userRef.current && prev.repeat !== "one") {
+        void clearPlaybackPosition(userRef.current, prev.current.id).catch(() => {});
+      }
       if (prev.repeat === "one") return { ...prev, progressSec: 0 };
       const isLast = prev.index >= prev.queue.length - 1;
       if (isLast && prev.repeat !== "all") {
@@ -404,8 +448,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       yt.pauseVideo();
       return;
     }
-    yt.loadVideoById(currentVideoId);
-  }, [currentVideoId, ytReady]);
+    const offset = takeResumeOffset(trackId);
+    if (offset) yt.loadVideoById({ videoId: currentVideoId, startSeconds: offset });
+    else yt.loadVideoById(currentVideoId);
+  }, [currentVideoId, ytReady, trackId, takeResumeOffset]);
 
   useEffect(() => {
     const yt = ytPlayerRef.current;
@@ -504,9 +550,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!useSpotifySdk) return;
-    if (state.isPlaying) void spotifyPlayback.resume();
-    else void spotifyPlayback.pause();
-  }, [state.isPlaying, useSpotifySdk]);
+    if (state.isPlaying) {
+      void spotifyPlayback.resume().then(() => {
+        const offset = takeResumeOffset(trackId);
+        if (offset) void spotifyPlayback.seek(offset);
+      });
+    } else void spotifyPlayback.pause();
+  }, [state.isPlaying, useSpotifySdk, trackId, takeResumeOffset]);
 
   useEffect(() => {
     if (!useSpotifySdk) return;
@@ -549,6 +599,45 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     loggedRef.current = key;
     void recordPlay(user.id, state.current).catch(() => {});
   }, [user, state.current, state.index]);
+
+  // Persist the listening position (throttled) so it can be resumed later.
+  useEffect(() => {
+    if (!user || !state.current || !state.isPlaying) return;
+    const now = Date.now();
+    if (now - savedAtRef.current < 5000) return;
+    savedAtRef.current = now;
+    void savePlaybackPosition(user.id, state.current, state.progressSec).catch(() => {});
+  }, [user, state.current, state.progressSec, state.isPlaying]);
+
+  // Flush on pause, track change, and when the tab is hidden or closed.
+  const flushRef = useRef<() => void>(() => {});
+  flushRef.current = () => {
+    if (!user || !state.current) return;
+    const track = state.current;
+    const position = state.progressSec;
+    if (position < 1) return;
+    savedAtRef.current = Date.now();
+    void savePlaybackPosition(user.id, track, position).catch(() => {});
+  };
+
+  useEffect(() => {
+    if (!state.isPlaying) flushRef.current();
+  }, [state.isPlaying]);
+
+  useEffect(() => () => flushRef.current(), [trackId]);
+
+  useEffect(() => {
+    const flush = () => flushRef.current();
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, []);
 
   const actions = useMemo<PlayerActions>(
     () => ({
@@ -650,6 +739,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setState((prev) => (prev.current ? { ...prev, progressSec: time } : prev));
         }}
         onLoadedMetadata={(event) => {
+          const offset = takeResumeOffset(state.current?.id);
+          if (offset) event.currentTarget.currentTime = offset;
           const duration = event.currentTarget.duration;
           if (!Number.isFinite(duration)) return;
           setState((prev) => {
