@@ -2,9 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import type { Track } from "./types";
 
 /**
- * YouTube Data API v3 search, executed server-side so the API key never
- * reaches the browser. Only metadata is fetched; playback happens in the
+ * YouTube Data API v3 search, executed server-side so the API keys never
+ * reach the browser. Only metadata is fetched; playback happens in the
  * official IFrame player (required by YouTube's terms).
+ *
+ * Multiple keys (from different Google Cloud projects) are supported so the
+ * search can hop to the next key when one exhausts its daily quota.
  */
 
 interface SearchInput {
@@ -43,111 +46,128 @@ function splitTitle(raw: string, channel: string): { title: string; artist: stri
   return { title: clean, artist: decodeEntities(channel).replace(/\s*-\s*Topic$/i, "").trim() };
 }
 
+/** Distinguishes "this key is out of quota" from a genuine key/config problem. */
+function isQuotaError(status: number, body: string): boolean {
+  return status === 429 || (status === 403 && /quota|rateLimit|RESOURCE_EXHAUSTED/i.test(body));
+}
+
 export const searchYouTube = createServerFn({ method: "GET" })
   .inputValidator((input: SearchInput) => ({
     query: String(input?.query ?? "").slice(0, 200),
     limit: Math.min(Math.max(Number(input?.limit ?? 20), 1), 50),
   }))
   .handler(async ({ data }): Promise<Track[]> => {
-    const apiKey = process.env.YOUTUBE_API_KEY;
-    if (!apiKey) throw new Error("YouTube is not configured yet.");
+    const {
+      cacheKey,
+      readCache,
+      writeCache,
+      writeQuotaMiss,
+      dedupe,
+      apiKeys,
+      availableApiKeys,
+      markKeyExhausted,
+    } = await import("./youtube.server");
+
+    if (!apiKeys().length) throw new Error("YouTube is not configured yet.");
     if (!data.query.trim()) return [];
 
-    const { cacheKey, readCache, writeCache, writeQuotaMiss, dedupe } = await import(
-      "./youtube.server"
-    );
     const key = cacheKey(data.query, data.limit);
     const cached = readCache(key);
     if (cached) return cached;
 
     return dedupe(key, async () => {
+      const keys = availableApiKeys();
+      let lastError: Error | null = null;
 
+      for (const apiKey of keys) {
+        const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
+        searchUrl.searchParams.set("part", "snippet");
+        searchUrl.searchParams.set("type", "video");
+        searchUrl.searchParams.set("videoCategoryId", "10"); // Music
+        searchUrl.searchParams.set("videoEmbeddable", "true");
+        searchUrl.searchParams.set("maxResults", String(data.limit));
+        searchUrl.searchParams.set("q", data.query);
+        searchUrl.searchParams.set("key", apiKey);
 
-    const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
-    searchUrl.searchParams.set("part", "snippet");
-    searchUrl.searchParams.set("type", "video");
-    searchUrl.searchParams.set("videoCategoryId", "10"); // Music
-    searchUrl.searchParams.set("videoEmbeddable", "true");
-    searchUrl.searchParams.set("maxResults", String(data.limit));
-    searchUrl.searchParams.set("q", data.query);
-    searchUrl.searchParams.set("key", apiKey);
+        const searchRes = await fetch(searchUrl);
+        if (!searchRes.ok) {
+          const body = await searchRes.text();
+          console.error(`YouTube search failed [${searchRes.status}]: ${body}`);
+          if (isQuotaError(searchRes.status, body)) {
+            // Park this key until the daily reset and try the next project's key.
+            markKeyExhausted(apiKey);
+            lastError = new Error("YouTube quota exceeded");
+            continue;
+          }
+          if (searchRes.status === 400 || searchRes.status === 403) {
+            // Bad/restricted key — skip it, another key may still work.
+            lastError = new Error(
+              "YouTube rejected the API key — check that it is valid and that YouTube Data API v3 is enabled.",
+            );
+            continue;
+          }
+          lastError = new Error(`YouTube search failed (${searchRes.status})`);
+          continue;
+        }
 
-    const searchRes = await fetch(searchUrl);
-    if (!searchRes.ok) {
-      const body = await searchRes.text();
-      console.error(`YouTube search failed [${searchRes.status}]: ${body}`);
-      // Quota / rate limit: degrade quietly so the other sources still render,
-      // and remember the miss briefly so we stop hammering the API.
-      if (searchRes.status === 429) {
-        writeQuotaMiss(key);
-        return [];
-      }
-      if (searchRes.status === 400 || searchRes.status === 403) {
-        // 403 is also how the Data API reports quotaExceeded / rateLimitExceeded.
-        if (/quota|rateLimit/i.test(body)) {
-          writeQuotaMiss(key);
+        const searchJson = (await searchRes.json()) as {
+          items?: {
+            id: { videoId: string };
+            snippet: {
+              title: string;
+              channelTitle: string;
+              thumbnails?: Record<string, { url: string }>;
+            };
+          }[];
+        };
+
+        const items = (searchJson.items ?? []).filter((item) => item.id?.videoId);
+        if (!items.length) {
+          writeCache(key, []);
           return [];
         }
-        throw new Error(
-          "YouTube rejected the API key — check that it is valid and that YouTube Data API v3 is enabled.",
-        );
+
+        // Second call: durations (not returned by search). Reuse the same key;
+        // a failure here only costs us duration metadata.
+        const detailsUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
+        detailsUrl.searchParams.set("part", "contentDetails");
+        detailsUrl.searchParams.set("id", items.map((item) => item.id.videoId).join(","));
+        detailsUrl.searchParams.set("key", apiKey);
+
+        const durations = new Map<string, number>();
+        const detailsRes = await fetch(detailsUrl);
+        if (detailsRes.ok) {
+          const detailsJson = (await detailsRes.json()) as {
+            items?: { id: string; contentDetails?: { duration?: string } }[];
+          };
+          for (const item of detailsJson.items ?? []) {
+            durations.set(item.id, parseIsoDuration(item.contentDetails?.duration ?? ""));
+          }
+        }
+
+        const tracks = items.map((item) => {
+          const videoId = item.id.videoId;
+          const { title, artist } = splitTitle(item.snippet.title, item.snippet.channelTitle);
+          const thumbs = item.snippet.thumbnails ?? {};
+          return {
+            id: `yt-${videoId}`,
+            source: "youtube" as const,
+            title,
+            artist: artist || "YouTube",
+            artworkUrl: (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? null,
+            durationSec: durations.get(videoId) ?? 0,
+            audioUrl: null,
+            youtubeVideoId: videoId,
+            externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          };
+        });
+        writeCache(key, tracks);
+        return tracks;
       }
-      throw new Error(`YouTube search failed (${searchRes.status})`);
-    }
 
-    const searchJson = (await searchRes.json()) as {
-      items?: {
-        id: { videoId: string };
-        snippet: {
-          title: string;
-          channelTitle: string;
-          thumbnails?: Record<string, { url: string }>;
-        };
-      }[];
-    };
-
-    const items = (searchJson.items ?? []).filter((item) => item.id?.videoId);
-    if (!items.length) {
-      writeCache(key, []);
+      // Every key failed. Degrade quietly so Spotify/Archive results still render.
+      console.error(`YouTube search exhausted all ${keys.length} key(s): ${lastError?.message}`);
+      writeQuotaMiss(key);
       return [];
-    }
-
-
-    // Second call: durations (not returned by search).
-    const detailsUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
-    detailsUrl.searchParams.set("part", "contentDetails");
-    detailsUrl.searchParams.set("id", items.map((item) => item.id.videoId).join(","));
-    detailsUrl.searchParams.set("key", apiKey);
-
-    const durations = new Map<string, number>();
-    const detailsRes = await fetch(detailsUrl);
-    if (detailsRes.ok) {
-      const detailsJson = (await detailsRes.json()) as {
-        items?: { id: string; contentDetails?: { duration?: string } }[];
-      };
-      for (const item of detailsJson.items ?? []) {
-        durations.set(item.id, parseIsoDuration(item.contentDetails?.duration ?? ""));
-      }
-    }
-
-      const tracks = items.map((item) => {
-        const videoId = item.id.videoId;
-        const { title, artist } = splitTitle(item.snippet.title, item.snippet.channelTitle);
-        const thumbs = item.snippet.thumbnails ?? {};
-        return {
-          id: `yt-${videoId}`,
-          source: "youtube" as const,
-          title,
-          artist: artist || "YouTube",
-          artworkUrl: (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? null,
-          durationSec: durations.get(videoId) ?? 0,
-          audioUrl: null,
-          youtubeVideoId: videoId,
-          externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
-        };
-      });
-      writeCache(key, tracks);
-      return tracks;
     });
   });
-
