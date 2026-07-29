@@ -246,3 +246,42 @@ export function useRemovePlaylistTrack() {
 export async function recordPlay(userId: string, track: Track) {
   await supabase.from("recently_played").insert({ user_id: userId, ...trackToRow(track) });
 }
+
+/** Creates a playlist and bulk-inserts an imported track list in one go. */
+export function useImportPlaylist(userId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      title: string;
+      description?: string | null;
+      tracks: Track[];
+    }) => {
+      if (!userId) throw new Error("Sign in to import playlists.");
+      const { data, error } = await supabase
+        .from("playlists")
+        .insert({
+          owner_id: userId,
+          title: input.title,
+          description: input.description ?? null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      const playlist = data as PlaylistRow;
+      if (input.tracks.length) {
+        const rows = input.tracks.map((track, position) => ({
+          playlist_id: playlist.id,
+          added_by: userId,
+          position,
+          ...trackToRow(track),
+        }));
+        const { error: trackError } = await supabase.from("playlist_tracks").insert(rows);
+        if (trackError) throw trackError;
+      }
+      return playlist;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryKeys.playlists(userId ?? "anon") });
+    },
+  });
+}
