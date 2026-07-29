@@ -650,16 +650,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           });
         }}
         onEnded={handleEnded}
+        onWaiting={() => setAudioBuffering(true)}
+        onStalled={() => setAudioBuffering(true)}
+        onCanPlay={() => setAudioBuffering(false)}
+        onPlaying={() => setAudioBuffering(false)}
         onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
         onPause={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
         onError={() => {
           // A dead archive stream shouldn't stop playback: drop the direct URL so
           // the Spotify / YouTube resolvers take over for this track.
+          setAudioBuffering(false);
           const track = state.current;
           if (track && rawAudioUrl && !currentVideoId) {
             setDeadAudio((prev) => (prev.includes(track.id) ? prev : [...prev, track.id]));
           }
         }}
+
 
         className="hidden"
       />
