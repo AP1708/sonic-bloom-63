@@ -27,6 +27,8 @@ import { useSession } from "@/hooks/use-session";
 import { useMediaSession } from "@/hooks/use-media-session";
 
 export type SidePanel = "queue" | "lyrics" | null;
+
+const AUTO_QUEUE_KEY = "sonance:auto-queue";
 export type RepeatMode = "off" | "all" | "one";
 
 /** Minimal surface of the official YouTube IFrame Player API that we use. */
@@ -72,6 +74,10 @@ interface PlayerState {
   repeat: RepeatMode;
   panel: SidePanel;
   fullscreen: boolean;
+  /** Autoplay radio: keep topping the queue up with related songs. */
+  autoQueue: boolean;
+  /** Ids of tracks that the radio added, so the queue can label them. */
+  autoQueuedIds: string[];
 }
 
 export type PlaybackStatus = "idle" | "resolving" | "buffering" | "ready" | "unavailable";
@@ -94,6 +100,7 @@ interface PlayerActions {
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   retrySource: () => void;
+  setAutoQueue: (value: boolean) => void;
 }
 
 interface PlayerStatus {
@@ -119,6 +126,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     repeat: "off",
     panel: null,
     fullscreen: false,
+    autoQueue: true,
+    autoQueuedIds: [],
   });
 
   const loggedRef = useRef<string | null>(null);
@@ -743,8 +752,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           ...prev,
           queue: prev.current ? [prev.current] : [],
           index: 0,
+          autoQueuedIds: [],
         })),
       retrySource: () => retrySourceRef.current(),
+      setAutoQueue: (value) => {
+        setState((prev) => ({ ...prev, autoQueue: value }));
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AUTO_QUEUE_KEY, value ? "on" : "off");
+        }
+      },
     }),
     [],
   );
