@@ -221,6 +221,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, progressSec: 0, isPlaying: true }));
   }, [state.current]);
 
+  const retrySourceRef = useRef(retrySource);
+  retrySourceRef.current = retrySource;
+
+
+
   // Nothing should hang forever: if resolution or buffering stalls, drop the
   // stuck source so the next one in the chain gets a turn.
   useEffect(() => {
