@@ -119,15 +119,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     null,
   );
 
-  const ownSpotifyUri = state.current?.spotifyUri ?? null;
-  const fallbackSpotifyUri =
-    state.current && resolvedSpotify?.trackId === state.current.id ? resolvedSpotify.uri : null;
-  const spotifyUri = ownSpotifyUri ?? fallbackSpotifyUri;
-  const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
-
   const directAudioUrl = state.current
     ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
+
+  const ownSpotifyUri = state.current?.spotifyUri ?? null;
+  const fallbackSpotifyUri =
+    state.current && resolvedSpotify?.trackId === state.current.id ? resolvedSpotify.uri : null;
+  // A resolved match only takes over when there is no direct stream to play.
+  const spotifyUri = ownSpotifyUri ?? (directAudioUrl ? null : fallbackSpotifyUri);
+  const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
+
 
   const ownVideoId = state.current?.youtubeVideoId ?? null;
   const fallbackVideoId =
