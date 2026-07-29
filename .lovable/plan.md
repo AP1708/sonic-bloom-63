@@ -1,33 +1,36 @@
 ## Goal
 
-Remember how far you got in each track in your account, and when you reopen the app, bring back the last track you were listening to — loaded at that saved point, paused and ready to press play.
+Keep music playing when you switch apps or the screen turns off, and let you pop the player out into a floating picture-in-picture window.
 
-## Behaviour
+## What gets built
 
-- While a track plays, its position is saved to your account (throttled to roughly every 5 seconds, plus on pause, track change, and when the tab closes).
-- Finished tracks are cleared, so a completed song starts fresh next time.
-- Starting a track yourself (from search, a playlist, an artist page) always begins at 0:00 — saved positions are only used for the restore-on-reopen flow, per your choice.
-- On reopening the app while signed in, the player bar and fullscreen player show the last track at its saved position, paused. No autoplay.
-- Positions under ~10 seconds or within ~15 seconds of the end are not restored (they just start from 0:00).
-- Signed out, nothing is saved or restored.
+**1. Lock screen / notification controls (Media Session)**
+- New `useMediaSession` hook wired into `player-provider.tsx`.
+- Publishes title, artist, album and artwork for the current track, so Android/iOS lock screens, Chrome/Edge media hubs and Bluetooth/car controls show the song.
+- Registers handlers for play, pause, next, previous, seek forward/back and seek-to, mapped to the existing player actions.
+- Keeps `navigator.mediaSession.playbackState` and `setPositionState` in sync with the existing progress clock so the scrubber on the lock screen is accurate.
 
-## Technical details
+**2. Background playback hardening**
+- Keep the `<audio>` element alive and never tear it down on route changes (it already lives in the provider — verify nothing pauses it on visibility change).
+- Add a `playsInline` attribute and avoid pausing on `visibilitychange`.
+- When the tab is hidden, prefer sources that survive backgrounding: direct Archive audio and the Spotify SDK. If the current source is the YouTube iframe and the page goes to the background on mobile, show a one-time hint that YouTube-sourced tracks can pause when backgrounded (browser policy we cannot override), and try to re-resolve to a direct/Spotify source when one exists.
 
-**Database (one migration)**
-- New table `public.playback_positions`: `user_id` + `track_id` (composite primary key), `source`, `title`, `artist`, `artwork_url`, `duration_sec`, `position_sec`, `is_last` handled instead via `updated_at timestamptz`.
-- Owner-only RLS (`auth.uid() = user_id`) for select/insert/update/delete, plus `GRANT SELECT, INSERT, UPDATE, DELETE ... TO authenticated` and `GRANT ALL ... TO service_role` in the same migration.
-- The most recent row (`order by updated_at desc limit 1`) is the "last listened" track to restore — no extra column needed.
+**3. Picture-in-picture mini player**
+- New "Pop out player" button in `player-bar.tsx` and `fullscreen-player.tsx`.
+- Uses the Document Picture-in-Picture API (Chrome/Edge desktop) to open a small always-on-top window rendering a compact player: artwork, title/artist, play/pause, next/prev and progress. Styles are cloned from the app so it matches the Neon Mint theme.
+- For YouTube-sourced tracks, the existing floating YouTube iframe is moved into the PiP window so video/audio keeps playing, and moved back when PiP closes.
+- The button hides automatically when the browser has no PiP support.
 
-**Hooks (`src/hooks/use-library.ts`)**
-- `savePlaybackPosition(userId, track, positionSec)` — upsert on `(user_id, track_id)`.
-- `clearPlaybackPosition(userId, trackId)` — delete on completion.
-- `useLastPlaybackPosition(userId)` — query for the newest row, mapped to a `Track` via the existing `rowToTrack`-style mapper.
+**4. Installability (helps mobile background audio)**
+- Add a web app manifest plus icons and head tags so the app can be added to the home screen. Installed standalone apps on Android keep audio running with the screen off far more reliably than a browser tab. No service worker or offline mode.
 
-**Player (`src/components/player/player-provider.tsx`)**
-- Save effect: throttled write driven by `state.progressSec` (write at most every 5s), plus a flush on track change, on pause, and on `visibilitychange`/`pagehide`.
-- Clear on `handleEnded` for the finished track.
-- New `restoreLast()` internal step that runs once after the session loads and only when the queue is empty: sets `queue: [track]`, `index: 0`, `current: track`, `progressSec: savedPosition`, `isPlaying: false`.
-- Existing source-resolution effects already key off `state.current`, so the resolved stream/YouTube/Spotify source seeks to `progressSec` on first play rather than starting at 0 — the seek is applied in the audio `onLoadedMetadata` / YouTube ready handlers, guarded so it only happens once per restored track.
+## Honest limitations
 
-**UI**
-- No new controls needed; `player-bar.tsx` and `fullscreen-player.tsx` already render `player.current` and `player.progressSec`, so the restored track appears automatically with the progress bar pre-positioned.
+- Audio can keep playing with the screen off or the app backgrounded, but **not after the browser/tab is fully closed** — no web app can do that.
+- On iOS Safari, background audio works for direct audio streams; YouTube-iframe-sourced tracks will pause when the app is backgrounded (Apple/YouTube policy).
+- Document picture-in-picture is desktop Chromium only today; other browsers get the button hidden.
+
+## Technical notes
+
+- Files touched: `src/components/player/player-provider.tsx`, `player-bar.tsx`, `fullscreen-player.tsx`, new `src/hooks/use-media-session.ts`, new `src/components/player/pip-player.tsx`, `public/manifest.webmanifest` + icons, head tags in `src/routes/__root.tsx`.
+- No database or backend changes.
