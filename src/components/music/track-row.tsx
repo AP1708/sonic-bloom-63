@@ -1,6 +1,7 @@
-import { Heart, MoreHorizontal, Play, Plus } from "lucide-react";
+import { ArrowDownToLine, Heart, MoreHorizontal, Play, Plus } from "lucide-react";
 import { TrackMenu } from "./track-menu";
 import { Artwork, Equalizer, SourceTag } from "./artwork";
+import { useOfflineIds } from "@/hooks/use-offline";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/lib/music/types";
@@ -31,6 +32,9 @@ export function TrackRow({
   onAdd,
   showMenu = true,
 }: TrackRowProps) {
+  const offlineIds = useOfflineIds();
+  const isOffline = offlineIds.has(track.id);
+
   return (
     <div
       className={cn(
@@ -59,8 +63,14 @@ export function TrackRow({
           <Artwork seed={track.id} src={track.artworkUrl} alt="" className="size-10 shrink-0" rounded="rounded-md" />
         )}
         <div className="min-w-0">
-          <p className={cn("truncate text-sm font-medium", isCurrent && "text-primary")}>
-            {track.title}
+          <p className={cn("flex items-center gap-1.5 truncate text-sm font-medium", isCurrent && "text-primary")}>
+            <span className="truncate">{track.title}</span>
+            {isOffline ? (
+              <ArrowDownToLine
+                aria-label="Available offline"
+                className="size-3 shrink-0 text-primary"
+              />
+            ) : null}
           </p>
           <p className="truncate text-xs text-muted-foreground sm:hidden">{track.artist}</p>
         </div>
