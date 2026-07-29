@@ -160,7 +160,11 @@ export type Database = {
           description: string | null
           id: string
           is_collaborative: boolean
+          is_hidden: boolean
           is_public: boolean
+          moderated_at: string | null
+          moderated_by: string | null
+          moderation_note: string | null
           owner_id: string
           title: string
           updated_at: string
@@ -171,7 +175,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_collaborative?: boolean
+          is_hidden?: boolean
           is_public?: boolean
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
           owner_id: string
           title: string
           updated_at?: string
@@ -182,7 +190,11 @@ export type Database = {
           description?: string | null
           id?: string
           is_collaborative?: boolean
+          is_hidden?: boolean
           is_public?: boolean
+          moderated_at?: string | null
+          moderated_by?: string | null
+          moderation_note?: string | null
           owner_id?: string
           title?: string
           updated_at?: string
@@ -195,18 +207,30 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          suspended_at: string | null
+          suspended_by: string | null
+          suspended_until: string | null
+          suspension_reason: string | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspended_until?: string | null
+          suspension_reason?: string | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspended_until?: string | null
+          suspension_reason?: string | null
         }
         Relationships: []
       }
@@ -284,6 +308,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_suspended: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
