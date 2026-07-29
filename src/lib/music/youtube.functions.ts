@@ -66,6 +66,11 @@ export const searchYouTube = createServerFn({ method: "GET" })
     if (!searchRes.ok) {
       const body = await searchRes.text();
       console.error(`YouTube search failed [${searchRes.status}]: ${body}`);
+      if (searchRes.status === 400 || searchRes.status === 403) {
+        throw new Error(
+          "YouTube rejected the API key — check that it is valid and that YouTube Data API v3 is enabled.",
+        );
+      }
       throw new Error(`YouTube search failed (${searchRes.status})`);
     }
     const searchJson = (await searchRes.json()) as {
