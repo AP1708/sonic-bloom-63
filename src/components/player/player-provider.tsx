@@ -121,6 +121,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   });
 
   const loggedRef = useRef<string | null>(null);
+  const userRef = useRef<string | null>(null);
+  userRef.current = user?.id ?? null;
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ytHostRef = useRef<HTMLDivElement | null>(null);
   const ytPlayerRef = useRef<YTPlayer | null>(null);
