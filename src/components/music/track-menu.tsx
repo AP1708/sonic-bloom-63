@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  ArrowDownToLine,
   Download,
   Heart,
   ListEnd,
@@ -7,6 +8,7 @@ import {
   ListStart,
   MoreHorizontal,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -26,9 +28,12 @@ import {
   usePlaylists,
   useToggleLike,
 } from "@/hooks/use-library";
+import { useOfflineIds } from "@/hooks/use-offline";
+import { removeTrack, saveTrack } from "@/lib/offline/store";
 import { useSession } from "@/hooks/use-session";
 import { cn } from "@/lib/utils";
 import type { Track } from "@/lib/music/types";
+
 
 export function TrackMenu({
   track,
@@ -45,7 +50,27 @@ export function TrackMenu({
   const toggleLike = useToggleLike(user?.id);
   const addToPlaylist = useAddTrackToPlaylist(user?.id);
   const createPlaylist = useCreatePlaylist(user?.id);
+  const offlineIds = useOfflineIds();
+  const isOffline = offlineIds.has(track.id);
+  const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
+
+  const saveOffline = async () => {
+    setSaving(true);
+    try {
+      const entry = await saveTrack(track, "manual");
+      toast.success(
+        entry.hasAudio
+          ? "Saved for offline listening"
+          : "Pinned — this source has to stream, so only the details are stored",
+      );
+    } catch {
+      toast.error("Couldn't save that track offline.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const add = (playlistId: string, position: number, name: string) =>
     addToPlaylist.mutate(
@@ -156,9 +181,23 @@ export function TrackMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
+        {isOffline ? (
+          <DropdownMenuItem
+            onSelect={() => {
+              void removeTrack(track.id).then(() => toast.success("Removed from downloads"));
+            }}
+          >
+            <Trash2 className="size-4" /> Remove download
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem disabled={saving} onSelect={() => void saveOffline()}>
+            <ArrowDownToLine className="size-4" /> Save offline
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={handleDownload}>
-          <Download className="size-4" /> Download
+          <Download className="size-4" /> Download file
         </DropdownMenuItem>
+
       </DropdownMenuContent>
     </DropdownMenu>
   );

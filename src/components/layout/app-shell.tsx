@@ -11,6 +11,7 @@ import { useTheme } from "@/components/theme/theme";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
 import { useLikedSongs, useToggleLike } from "@/hooks/use-library";
+import { useSmartDownloadScheduler } from "@/hooks/use-offline";
 import { supabase } from "@/integrations/supabase/client";
 import { initials } from "@/lib/format";
 
@@ -23,6 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const player = usePlayer();
   const { data: liked } = useLikedSongs(user?.id);
   const toggleLike = useToggleLike(user?.id);
+  useSmartDownloadScheduler();
 
   const currentLiked = Boolean(
     player.current && liked?.some((track) => track.id === player.current?.id),

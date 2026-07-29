@@ -26,6 +26,9 @@ import {
 import { useSession } from "@/hooks/use-session";
 import { useMediaSession } from "@/hooks/use-media-session";
 import { findRelatedTracks } from "@/lib/music/related";
+import { useOfflineAudioUrl } from "@/hooks/use-offline";
+import { recordListen } from "@/hooks/use-listening-history";
+
 
 export type SidePanel = "queue" | "lyrics" | null;
 
@@ -157,11 +160,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** YouTube videos that refused to play (blocked / removed / not embeddable). */
   const [deadVideos, setDeadVideos] = useState<string[]>([]);
 
+  // Downloaded copies win over the network so playback works with no connection.
+  const offlineAudioUrl = useOfflineAudioUrl(state.current?.id ?? null);
+
   const rawAudioUrl = state.current
-    ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
+    ? (offlineAudioUrl ?? state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
   const directAudioUrl =
     state.current && deadAudio.includes(state.current.id) ? null : rawAudioUrl;
+
 
   const ownSpotifyUri = state.current?.spotifyUri ?? null;
   const fallbackSpotifyUri =
@@ -614,6 +621,39 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     loggedRef.current = key;
     void recordPlay(user.id, state.current).catch(() => {});
   }, [user, state.current, state.index]);
+
+  // Listening history: how much of each track was actually heard. This is what
+  // the taste model and smart downloads learn from.
+  const listenRef = useRef<{ track: Track; seconds: number } | null>(null);
+  useEffect(() => {
+    if (!state.current) return;
+    const entry = listenRef.current;
+    if (entry && entry.track.id === state.current.id) {
+      entry.seconds = Math.max(entry.seconds, state.progressSec);
+    } else {
+      listenRef.current = { track: state.current, seconds: state.progressSec };
+    }
+  }, [state.current, state.progressSec]);
+
+  const flushListenRef = useRef<() => void>(() => {});
+  flushListenRef.current = () => {
+    const entry = listenRef.current;
+    const userId = userRef.current;
+    listenRef.current = null;
+    if (!entry || !userId || entry.seconds < 5) return;
+    const duration = entry.track.durationSec || 0;
+    const completed = duration > 0 && entry.seconds >= duration - 10;
+    void recordListen(userId, entry.track, entry.seconds, completed).catch(() => {});
+  };
+
+  useEffect(() => () => flushListenRef.current(), [trackId]);
+
+  useEffect(() => {
+    const flush = () => flushListenRef.current();
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, []);
+
 
   // Persist the listening position (throttled) so it can be resumed later.
   useEffect(() => {

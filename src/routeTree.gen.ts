@@ -20,6 +20,7 @@ import { Route as SpotifyCallbackRouteImport } from './routes/spotify/callback'
 import { Route as ArtistsArtistIdRouteImport } from './routes/artists/$artistId'
 import { Route as AuthenticatedLikedRouteImport } from './routes/_authenticated/liked'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
+import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPlaylistPlaylistIdRouteImport } from './routes/_authenticated/playlist.$playlistId'
 import { Route as ApiPublicHooksYoutubeKeyHealthRouteImport } from './routes/api/public/hooks/youtube-key-health'
@@ -78,6 +79,11 @@ const AuthenticatedLibraryRoute = AuthenticatedLibraryRouteImport.update({
   path: '/library',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDownloadsRoute = AuthenticatedDownloadsRouteImport.update({
+  id: '/downloads',
+  path: '/downloads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/downloads': typeof AuthenticatedDownloadsRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/downloads': typeof AuthenticatedDownloadsRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/admin'
+    | '/downloads'
     | '/library'
     | '/liked'
     | '/artists/$artistId'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/admin'
+    | '/downloads'
     | '/library'
     | '/liked'
     | '/artists/$artistId'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/sitemap.xml'
     | '/_authenticated/admin'
+    | '/_authenticated/downloads'
     | '/_authenticated/library'
     | '/_authenticated/liked'
     | '/artists/$artistId'
@@ -284,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLibraryRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/downloads': {
+      id: '/_authenticated/downloads'
+      path: '/downloads'
+      fullPath: '/downloads'
+      preLoaderRoute: typeof AuthenticatedDownloadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -310,6 +329,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedDownloadsRoute: typeof AuthenticatedDownloadsRoute
   AuthenticatedLibraryRoute: typeof AuthenticatedLibraryRoute
   AuthenticatedLikedRoute: typeof AuthenticatedLikedRoute
   AuthenticatedPlaylistPlaylistIdRoute: typeof AuthenticatedPlaylistPlaylistIdRoute
@@ -317,6 +337,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedDownloadsRoute: AuthenticatedDownloadsRoute,
   AuthenticatedLibraryRoute: AuthenticatedLibraryRoute,
   AuthenticatedLikedRoute: AuthenticatedLikedRoute,
   AuthenticatedPlaylistPlaylistIdRoute: AuthenticatedPlaylistPlaylistIdRoute,
@@ -340,13 +361,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

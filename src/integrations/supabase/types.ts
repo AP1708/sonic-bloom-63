@@ -47,6 +47,54 @@ export type Database = {
         }
         Relationships: []
       }
+      listening_history: {
+        Row: {
+          artist: string
+          artwork_url: string | null
+          completed: boolean
+          created_at: string
+          duration_sec: number
+          id: string
+          played_at: string
+          seconds_played: number
+          source: string
+          title: string
+          track_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artist: string
+          artwork_url?: string | null
+          completed?: boolean
+          created_at?: string
+          duration_sec?: number
+          id?: string
+          played_at?: string
+          seconds_played?: number
+          source: string
+          title: string
+          track_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artist?: string
+          artwork_url?: string | null
+          completed?: boolean
+          created_at?: string
+          duration_sec?: number
+          id?: string
+          played_at?: string
+          seconds_played?: number
+          source?: string
+          title?: string
+          track_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
