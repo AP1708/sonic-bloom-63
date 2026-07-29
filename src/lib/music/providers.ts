@@ -69,7 +69,17 @@ export const youtubeProvider: MusicProvider = {
   },
 };
 
-export const PROVIDERS: MusicProvider[] = [spotifyProvider, youtubeProvider];
+/** Public-domain recordings streamed from the Internet Archive. Always available. */
+export const archiveProvider: MusicProvider = {
+  id: "archive",
+  label: "Archive",
+  isConfigured: () => true,
+  async search(query, options = {}) {
+    return demoSearch("archive", query, options.limit ?? 20);
+  },
+};
+
+export const PROVIDERS: MusicProvider[] = [archiveProvider, spotifyProvider, youtubeProvider];
 
 export async function searchAll(query: string, options: SearchOptions = {}): Promise<SearchResults> {
   const source = options.source ?? "all";

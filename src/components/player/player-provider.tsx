@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Track } from "@/lib/music/types";
+import { audioUrlFor } from "@/lib/music/catalog";
 import { recordPlay } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 
@@ -66,11 +67,62 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   });
 
   const loggedRef = useRef<string | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Playback clock. Real media is driven by the official embedded players; this
-  // keeps the transport UI in sync and advances the queue at track end.
+  const currentAudioUrl = state.current
+    ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
+    : null;
+
+  /** Advance the queue when a track finishes (shared by the audio element and the clock). */
+  const handleEnded = useCallback(() => {
+    setState((prev) => {
+      if (!prev.current) return prev;
+      if (prev.repeat === "one") return { ...prev, progressSec: 0 };
+      const isLast = prev.index >= prev.queue.length - 1;
+      if (isLast && prev.repeat !== "all") {
+        return { ...prev, isPlaying: false, progressSec: prev.current.durationSec };
+      }
+      const nextIndex = isLast ? 0 : prev.index + 1;
+      return {
+        ...prev,
+        index: nextIndex,
+        current: prev.queue[nextIndex] ?? prev.current,
+        progressSec: 0,
+      };
+    });
+  }, []);
+
+  // Real audio playback for tracks with a direct stream (public-domain archive).
   useEffect(() => {
-    if (!state.isPlaying || !state.current) return;
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (!currentAudioUrl) {
+      audio.removeAttribute("src");
+      audio.load();
+      return;
+    }
+    if (audio.src !== currentAudioUrl) {
+      audio.src = currentAudioUrl;
+      audio.load();
+    }
+  }, [currentAudioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !currentAudioUrl) return;
+    if (state.isPlaying) void audio.play().catch(() => {});
+    else audio.pause();
+  }, [state.isPlaying, currentAudioUrl]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.volume = state.muted ? 0 : state.volume;
+  }, [state.volume, state.muted]);
+
+  // Playback clock for embedded-player sources (Spotify/YouTube) without a stream.
+  useEffect(() => {
+    if (!state.isPlaying || !state.current || currentAudioUrl) return;
     const id = window.setInterval(() => {
       setState((prev) => {
         if (!prev.current) return prev;
@@ -78,22 +130,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (nextProgress < prev.current.durationSec) {
           return { ...prev, progressSec: nextProgress };
         }
-        if (prev.repeat === "one") return { ...prev, progressSec: 0 };
-        const isLast = prev.index >= prev.queue.length - 1;
-        if (isLast && prev.repeat !== "all") {
-          return { ...prev, isPlaying: false, progressSec: prev.current.durationSec };
-        }
-        const nextIndex = isLast ? 0 : prev.index + 1;
-        return {
-          ...prev,
-          index: nextIndex,
-          current: prev.queue[nextIndex] ?? prev.current,
-          progressSec: 0,
-        };
+        return prev;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [state.isPlaying, state.current, state.index]);
+  }, [state.isPlaying, state.current, state.index, currentAudioUrl]);
+
+  useEffect(() => {
+    if (currentAudioUrl) return;
+    if (!state.current) return;
+    if (state.progressSec >= state.current.durationSec - 1 && state.isPlaying) {
+      const id = window.setTimeout(handleEnded, 1000);
+      return () => window.clearTimeout(id);
+    }
+  }, [state.progressSec, state.current, state.isPlaying, currentAudioUrl, handleEnded]);
+
 
   // Recently played history (app data only).
   useEffect(() => {
@@ -142,10 +193,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           return { ...prev, index: prevIndex, current: prev.queue[prevIndex], progressSec: 0 };
         }),
       seek: (seconds) =>
-        setState((prev) => ({
-          ...prev,
-          progressSec: Math.min(Math.max(0, seconds), prev.current?.durationSec ?? 0),
-        })),
+        setState((prev) => {
+          const clamped = Math.min(Math.max(0, seconds), prev.current?.durationSec ?? 0);
+          if (audioRef.current && audioRef.current.src) audioRef.current.currentTime = clamped;
+          return { ...prev, progressSec: clamped };
+        }),
       setVolume: (value) => setState((prev) => ({ ...prev, volume: value, muted: value === 0 })),
       toggleMute: () => setState((prev) => ({ ...prev, muted: !prev.muted })),
       toggleShuffle: () => setState((prev) => ({ ...prev, shuffle: !prev.shuffle })),
@@ -175,7 +227,25 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({ ...state, ...actions }), [state, actions]);
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        crossOrigin="anonymous"
+        onTimeUpdate={(event) => {
+          const time = event.currentTarget.currentTime;
+          setState((prev) => (prev.current ? { ...prev, progressSec: time } : prev));
+        }}
+        onEnded={handleEnded}
+        onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
+        onPause={() => setState((prev) => ({ ...prev, isPlaying: false }))}
+        onError={() => setState((prev) => ({ ...prev, isPlaying: false }))}
+        className="hidden"
+      />
+      {children}
+    </PlayerContext.Provider>
+  );
 }
 
 export function usePlayer() {

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Track } from "@/lib/music/types";
+import { audioUrlFor } from "@/lib/music/catalog";
 
 export interface PlaylistRow {
   id: string;
@@ -23,13 +24,17 @@ export interface SavedTrackRow {
 }
 
 export function rowToTrack(row: SavedTrackRow): Track {
+  const source: Track["source"] =
+    row.source === "spotify" ? "spotify" : row.source === "archive" ? "archive" : "youtube";
   return {
     id: row.track_id,
-    source: row.source === "spotify" ? "spotify" : "youtube",
+    source,
     title: row.title,
     artist: row.artist,
     artworkUrl: row.artwork_url,
     durationSec: row.duration_sec,
+    // Saved rows store metadata only; re-attach the stream for archive recordings.
+    audioUrl: audioUrlFor(row.track_id),
   };
 }
 
