@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ExternalLink, FileQuestion, RefreshCw, X, Trash2 } from "lucide-react";
+import { ExternalLink, FileQuestion, Radio, RefreshCw, X, Trash2 } from "lucide-react";
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
 import { useLyrics } from "@/hooks/use-lyrics";
