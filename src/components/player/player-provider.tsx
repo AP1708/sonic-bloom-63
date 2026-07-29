@@ -164,6 +164,104 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const videoIdRef = useRef<string | null>(null);
   videoIdRef.current = currentVideoId;
 
+  /** True while the active source is fetching data rather than actually playing. */
+  const [audioBuffering, setAudioBuffering] = useState(false);
+  const [ytBuffering, setYtBuffering] = useState(false);
+
+  const trackId = state.current?.id ?? null;
+  const spotifyLookupDone = !state.current || Boolean(ownSpotifyUri) || resolvedSpotify?.trackId === trackId;
+  const youtubeLookupDone = !state.current || Boolean(ownVideoId) || resolvedVideoId?.trackId === trackId;
+  const hasSource = Boolean(useSpotifySdk || currentAudioUrl || currentVideoId);
+
+  const activeSource: PlayerStatus["activeSource"] = useSpotifySdk
+    ? "spotify"
+    : directAudioUrl
+      ? "stream"
+      : currentVideoId
+        ? "youtube"
+        : currentAudioUrl
+          ? "preview"
+          : null;
+
+  const status: PlaybackStatus = !state.current
+    ? "idle"
+    : hasSource
+      ? (audioBuffering || ytBuffering) && state.isPlaying
+        ? "buffering"
+        : "ready"
+      : youtubeLookupDone && spotifyLookupDone
+        ? "unavailable"
+        : "resolving";
+
+  const statusLabel =
+    status === "resolving"
+      ? "Finding a playable source…"
+      : status === "buffering"
+        ? "Buffering…"
+        : status === "unavailable"
+          ? "No playable source found"
+          : null;
+
+  // Reset transient source flags whenever the track changes.
+  useEffect(() => {
+    setAudioBuffering(false);
+    setYtBuffering(false);
+  }, [trackId]);
+
+  /** Clears failure memory for the current track and re-runs source resolution. */
+  const retrySource = useCallback(() => {
+    const track = state.current;
+    if (!track) return;
+    setDeadAudio((prev) => prev.filter((id) => id !== track.id));
+    setDeadVideos([]);
+    setResolvedVideoId((prev) => (prev?.trackId === track.id ? null : prev));
+    setResolvedSpotify((prev) => (prev?.trackId === track.id ? null : prev));
+    setAudioBuffering(false);
+    setYtBuffering(false);
+    setState((prev) => ({ ...prev, progressSec: 0, isPlaying: true }));
+  }, [state.current]);
+
+  // Nothing should hang forever: if resolution or buffering stalls, drop the
+  // stuck source so the next one in the chain gets a turn.
+  useEffect(() => {
+    if (status !== "resolving" && status !== "buffering") return;
+    const timeout = window.setTimeout(() => {
+      const track = state.current;
+      if (!track) return;
+      if (status === "buffering") {
+        if (currentVideoId) {
+          setDeadVideos((prev) => (prev.includes(currentVideoId) ? prev : [...prev, currentVideoId]));
+        } else if (directAudioUrl) {
+          setDeadAudio((prev) => (prev.includes(track.id) ? prev : [...prev, track.id]));
+        }
+        return;
+      }
+      // Resolution never came back — record an empty result so the UI stops spinning.
+      if (!youtubeLookupDone) setResolvedVideoId({ trackId: track.id, videoId: null });
+      if (!spotifyLookupDone) setResolvedSpotify({ trackId: track.id, uri: null });
+    }, 15000);
+    return () => window.clearTimeout(timeout);
+  }, [status, state.current, currentVideoId, directAudioUrl, youtubeLookupDone, spotifyLookupDone]);
+
+  // Auto-advance instead of sitting silently on an unplayable track.
+  useEffect(() => {
+    if (status !== "unavailable" || !state.isPlaying) return;
+    const track = state.current;
+    const timeout = window.setTimeout(() => {
+      setState((prev) => {
+        if (!prev.queue.length || prev.queue.length < 2) return { ...prev, isPlaying: false };
+        const nextIndex = (prev.index + 1) % prev.queue.length;
+        return { ...prev, index: nextIndex, current: prev.queue[nextIndex], progressSec: 0 };
+      });
+      toast("Skipping unplayable track", {
+        description: track ? `No stream available for “${track.title}”.` : undefined,
+      });
+    }, 2500);
+    return () => window.clearTimeout(timeout);
+  }, [status, state.isPlaying, state.current]);
+
+
+
 
   // Resolve a Spotify match for tracks from other sources, so a linked Premium
   // session can stream anything the catalog surfaces.
