@@ -75,7 +75,14 @@ export const archiveProvider: MusicProvider = {
   label: "Archive",
   isConfigured: () => true,
   async search(query, options = {}) {
-    return demoSearch("archive", query, options.limit ?? 20);
+    const limit = options.limit ?? 20;
+    try {
+      const catalog = await loadFullCatalog();
+      return searchFullCatalog(catalog, query, limit);
+    } catch {
+      // Full archive unavailable (offline) — fall back to the bundled featured set.
+      return demoSearch("archive", query, limit);
+    }
   },
 };
 
