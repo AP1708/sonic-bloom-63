@@ -285,3 +285,55 @@ export function useImportPlaylist(userId?: string) {
     },
   });
 }
+
+// --- Resume playback positions -------------------------------------------
+
+export interface PlaybackPositionRow extends SavedTrackRow {
+  position_sec: number;
+  updated_at: string;
+}
+
+export const RESUME_MIN_SEC = 10;
+export const RESUME_END_GUARD_SEC = 15;
+
+/** Upserts how far the listener got in a track (account-synced). */
+export async function savePlaybackPosition(userId: string, track: Track, positionSec: number) {
+  await supabase.from("playback_positions").upsert(
+    {
+      user_id: userId,
+      position_sec: Math.max(0, Math.floor(positionSec)),
+      ...trackToRow(track),
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,track_id" },
+  );
+}
+
+export async function clearPlaybackPosition(userId: string, trackId: string) {
+  await supabase
+    .from("playback_positions")
+    .delete()
+    .eq("user_id", userId)
+    .eq("track_id", trackId);
+}
+
+/** The most recently listened track, used to restore the player on app reopen. */
+export function useLastPlaybackPosition(userId?: string) {
+  return useQuery({
+    queryKey: ["playback-position", userId ?? "anon"],
+    enabled: Boolean(userId),
+    staleTime: Infinity,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("playback_positions")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const row = data as unknown as PlaybackPositionRow;
+      return { track: rowToTrack(row), positionSec: row.position_sec };
+    },
+  });
+}

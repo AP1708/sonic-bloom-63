@@ -74,6 +74,45 @@ export type Database = {
         }
         Relationships: []
       }
+      playback_positions: {
+        Row: {
+          artist: string
+          artwork_url: string | null
+          created_at: string
+          duration_sec: number
+          position_sec: number
+          source: string
+          title: string
+          track_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          artist: string
+          artwork_url?: string | null
+          created_at?: string
+          duration_sec?: number
+          position_sec?: number
+          source: string
+          title: string
+          track_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          artist?: string
+          artwork_url?: string | null
+          created_at?: string
+          duration_sec?: number
+          position_sec?: number
+          source?: string
+          title?: string
+          track_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       playlist_collaborators: {
         Row: {
           created_at: string
