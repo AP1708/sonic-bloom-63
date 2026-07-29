@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Plus, Users } from "lucide-react";
+import { Plus, Upload, Users } from "lucide-react";
+import { toast } from "sonner";
 import { AppShell } from "@/components/layout/app-shell";
 import { Artwork } from "@/components/music/artwork";
 import { EmptyState } from "@/components/music/track-row";
-import { useCreatePlaylist, usePlaylists } from "@/hooks/use-library";
+import { useCreatePlaylist, useImportPlaylist, usePlaylists } from "@/hooks/use-library";
+import { parsePlaylistFile } from "@/lib/music/playlist-transfer";
 import { useSession } from "@/hooks/use-session";
 
 export const Route = createFileRoute("/_authenticated/library")({
@@ -25,6 +27,21 @@ function LibraryPage() {
   const createPlaylist = useCreatePlaylist(user?.id);
   const [title, setTitle] = useState("");
   const [collaborative, setCollaborative] = useState(false);
+  const importPlaylist = useImportPlaylist(user?.id);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleImportFile = async (file: File) => {
+    try {
+      const parsed = parsePlaylistFile(file.name, await file.text());
+      importPlaylist.mutate(parsed, {
+        onSuccess: (playlist) =>
+          toast.success(`Imported ${parsed.tracks.length} tracks into ${playlist.title}`),
+        onError: (error) => toast.error((error as Error).message),
+      });
+    } catch (error) {
+      toast.error((error as Error).message || "Could not read that playlist file.");
+    }
+  };
 
   return (
     <AppShell>
@@ -68,6 +85,25 @@ function LibraryPage() {
           >
             <Plus className="size-4" /> Create
           </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importPlaylist.isPending}
+            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm font-medium disabled:opacity-50"
+          >
+            <Upload className="size-4" /> {importPlaylist.isPending ? "Importing…" : "Import"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,.csv,application/json,text/csv"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (file) void handleImportFile(file);
+            }}
+          />
         </form>
 
         {createPlaylist.error && (
