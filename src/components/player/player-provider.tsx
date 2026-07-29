@@ -156,9 +156,83 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.volume = state.muted ? 0 : state.volume;
   }, [state.volume, state.muted]);
 
-  // Playback clock for embedded-player sources (Spotify/YouTube) without a stream.
+  // ---- YouTube IFrame Player API (official embedded playback) ----
   useEffect(() => {
-    if (!state.isPlaying || !state.current || currentAudioUrl) return;
+    if (!currentVideoId) return;
+    let cancelled = false;
+    void loadYouTubeApi().then(() => {
+      if (cancelled || ytPlayerRef.current || !ytHostRef.current) return;
+      const w = window as unknown as {
+        YT: { Player: new (el: HTMLElement, opts: Record<string, unknown>) => YTPlayer };
+      };
+      ytPlayerRef.current = new w.YT.Player(ytHostRef.current, {
+        height: "100%",
+        width: "100%",
+        playerVars: { autoplay: 0, controls: 0, playsinline: 1, rel: 0, modestbranding: 1 },
+        events: {
+          onReady: () => setYtReady(true),
+          onStateChange: (event: { data: number }) => {
+            if (event.data === 0) handleEnded(); // ENDED
+            if (event.data === 1) setState((prev) => ({ ...prev, isPlaying: true }));
+            if (event.data === 2) setState((prev) => ({ ...prev, isPlaying: false }));
+          },
+        },
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentVideoId, handleEnded]);
+
+  // Load / swap the active video.
+  useEffect(() => {
+    const yt = ytPlayerRef.current;
+    if (!yt || !ytReady) return;
+    if (!currentVideoId) {
+      yt.pauseVideo();
+      return;
+    }
+    yt.loadVideoById(currentVideoId);
+  }, [currentVideoId, ytReady]);
+
+  useEffect(() => {
+    const yt = ytPlayerRef.current;
+    if (!yt || !ytReady || !currentVideoId) return;
+    if (state.isPlaying) yt.playVideo();
+    else yt.pauseVideo();
+  }, [state.isPlaying, currentVideoId, ytReady]);
+
+  useEffect(() => {
+    const yt = ytPlayerRef.current;
+    if (!yt || !ytReady) return;
+    yt.setVolume(Math.round((state.muted ? 0 : state.volume) * 100));
+  }, [state.volume, state.muted, ytReady]);
+
+  // Progress polling for the YouTube player.
+  useEffect(() => {
+    if (!currentVideoId || !ytReady || !state.isPlaying) return;
+    const id = window.setInterval(() => {
+      const yt = ytPlayerRef.current;
+      if (!yt) return;
+      const time = yt.getCurrentTime();
+      const duration = yt.getDuration();
+      setState((prev) => {
+        if (!prev.current) return prev;
+        const current =
+          duration && Math.abs(prev.current.durationSec - duration) > 1
+            ? { ...prev.current, durationSec: Math.round(duration) }
+            : prev.current;
+        const queue =
+          current === prev.current ? prev.queue : prev.queue.map((t, i) => (i === prev.index ? current : t));
+        return { ...prev, current, queue, progressSec: time };
+      });
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [currentVideoId, ytReady, state.isPlaying]);
+
+  // Playback clock for sources without a stream or an embedded player (e.g. Spotify).
+  useEffect(() => {
+    if (!state.isPlaying || !state.current || currentAudioUrl || currentVideoId) return;
     const id = window.setInterval(() => {
       setState((prev) => {
         if (!prev.current) return prev;
@@ -170,16 +244,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [state.isPlaying, state.current, state.index, currentAudioUrl]);
+  }, [state.isPlaying, state.current, state.index, currentAudioUrl, currentVideoId]);
 
   useEffect(() => {
-    if (currentAudioUrl) return;
+    if (currentAudioUrl || currentVideoId) return;
     if (!state.current) return;
     if (state.progressSec >= state.current.durationSec - 1 && state.isPlaying) {
       const id = window.setTimeout(handleEnded, 1000);
       return () => window.clearTimeout(id);
     }
-  }, [state.progressSec, state.current, state.isPlaying, currentAudioUrl, handleEnded]);
+  }, [state.progressSec, state.current, state.isPlaying, currentAudioUrl, currentVideoId, handleEnded]);
+
 
 
   // Recently played history (app data only).
