@@ -318,12 +318,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!readSpotifySession()) {
+      // No linked account: the YouTube/preview fallback below takes over silently.
       setSpotifyStreaming(false);
-      if (!state.current?.previewUrl && !state.current?.audioUrl) {
-        toast("Connect Spotify to play this track", {
-          description: "Full playback needs a linked Spotify Premium account.",
-        });
-      }
       return;
     }
     let cancelled = false;
@@ -331,9 +327,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       spotifyActiveRef.current = ok;
       setSpotifyStreaming(ok);
-      if (!ok && !state.current?.previewUrl) {
-        toast("Spotify playback unavailable", {
-          description: "A Spotify Premium account is required for in-app playback.",
+      if (!ok) {
+        toast("Playing an alternate source", {
+          description: "Spotify in-app streaming needs Premium — using a matching stream instead.",
+
         });
       }
     });
