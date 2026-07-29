@@ -25,8 +25,11 @@ import {
 } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 import { useMediaSession } from "@/hooks/use-media-session";
+import { findRelatedTracks } from "@/lib/music/related";
 
 export type SidePanel = "queue" | "lyrics" | null;
+
+const AUTO_QUEUE_KEY = "sonance:auto-queue";
 export type RepeatMode = "off" | "all" | "one";
 
 /** Minimal surface of the official YouTube IFrame Player API that we use. */
@@ -72,6 +75,10 @@ interface PlayerState {
   repeat: RepeatMode;
   panel: SidePanel;
   fullscreen: boolean;
+  /** Autoplay radio: keep topping the queue up with related songs. */
+  autoQueue: boolean;
+  /** Ids of tracks that the radio added, so the queue can label them. */
+  autoQueuedIds: string[];
 }
 
 export type PlaybackStatus = "idle" | "resolving" | "buffering" | "ready" | "unavailable";
@@ -94,6 +101,7 @@ interface PlayerActions {
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   retrySource: () => void;
+  setAutoQueue: (value: boolean) => void;
 }
 
 interface PlayerStatus {
@@ -119,8 +127,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     repeat: "off",
     panel: null,
     fullscreen: false,
+    autoQueue: true,
+    autoQueuedIds: [],
   });
 
+  const queueRef = useRef<Track[]>([]);
+  queueRef.current = state.queue;
   const loggedRef = useRef<string | null>(null);
   const userRef = useRef<string | null>(null);
   userRef.current = user?.id ?? null;
@@ -666,6 +678,53 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
 
+  // Restore the saved autoplay-radio preference (client-only; SSR default is on).
+  useEffect(() => {
+    const stored = window.localStorage.getItem(AUTO_QUEUE_KEY);
+    if (stored === "off") setState((prev) => ({ ...prev, autoQueue: false }));
+  }, []);
+
+  // Autoplay radio: top the queue up with related songs before it runs out.
+  const radioSeedRef = useRef<string | null>(null);
+  const radioBusyRef = useRef(false);
+  const remaining = state.queue.length - state.index - 1;
+  useEffect(() => {
+    if (!state.autoQueue || !state.current || remaining >= 3) return;
+    const seed = state.current;
+    if (radioBusyRef.current || radioSeedRef.current === seed.id) return;
+    radioSeedRef.current = seed.id;
+    radioBusyRef.current = true;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const exclude = queueRef.current.map((track) => track.id);
+      void findRelatedTracks(seed, exclude, 8)
+        .then((tracks) => {
+          if (cancelled || !tracks.length) return;
+          setState((prev) => {
+            if (!prev.autoQueue) return prev;
+            const known = new Set(prev.queue.map((track) => track.id));
+            const additions = tracks.filter((track) => !known.has(track.id));
+            if (!additions.length) return prev;
+            return {
+              ...prev,
+              queue: [...prev.queue, ...additions],
+              autoQueuedIds: [...prev.autoQueuedIds, ...additions.map((track) => track.id)],
+            };
+          });
+        })
+        .finally(() => {
+          radioBusyRef.current = false;
+        });
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      radioBusyRef.current = false;
+    };
+  }, [state.autoQueue, state.current, remaining]);
+
   const actions = useMemo<PlayerActions>(
     () => ({
       playTrack: (track, contextQueue) => {
@@ -743,8 +802,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           ...prev,
           queue: prev.current ? [prev.current] : [],
           index: 0,
+          autoQueuedIds: [],
         })),
       retrySource: () => retrySourceRef.current(),
+      setAutoQueue: (value) => {
+        setState((prev) => ({ ...prev, autoQueue: value }));
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AUTO_QUEUE_KEY, value ? "on" : "off");
+        }
+      },
     }),
     [],
   );

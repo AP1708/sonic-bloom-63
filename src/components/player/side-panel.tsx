@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ExternalLink, FileQuestion, RefreshCw, X, Trash2 } from "lucide-react";
+import { ExternalLink, FileQuestion, Radio, RefreshCw, X, Trash2 } from "lucide-react";
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
 import { useLyrics } from "@/hooks/use-lyrics";
@@ -30,60 +30,96 @@ export function SidePanel() {
   );
 }
 
-function QueueList() {
+export function QueueList() {
   const player = usePlayer();
-
-  if (!player.queue.length) {
-    return <p className="p-5 text-sm text-muted-foreground">The queue is empty. Play something to get started.</p>;
-  }
+  const autoIds = new Set(player.autoQueuedIds);
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="flex items-center justify-between px-5 py-3">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3">
         <span className="label-mono">{player.queue.length} tracks</span>
-        <button
-          type="button"
-          onClick={player.clearQueue}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
-        >
-          <Trash2 className="size-3" /> Clear
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => player.setAutoQueue(!player.autoQueue)}
+            aria-pressed={player.autoQueue}
+            title="Keep adding similar songs when the queue runs low"
+            className={cn(
+              "flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground",
+              player.autoQueue && "text-primary hover:text-primary",
+            )}
+          >
+            <Radio className="size-3" /> Autoplay
+          </button>
+          <button
+            type="button"
+            onClick={player.clearQueue}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="size-3" /> Clear
+          </button>
+        </div>
       </div>
-      <ul className="flex flex-col gap-1 px-2 pb-5">
-        {player.queue.map((track, index) => (
-          <li key={`${track.id}-${index}`}>
-            <button
-              type="button"
-              onClick={() => player.playCollection(player.queue, index)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-raised",
-                index === player.index && "bg-surface-raised",
-              )}
-            >
-              <Artwork seed={track.id} src={track.artworkUrl} alt="" className="size-9" rounded="rounded-md" />
-              <span className="min-w-0 flex-1">
-                <span
-                  className={cn(
-                    "block truncate text-sm",
-                    index === player.index ? "text-primary" : "text-foreground",
-                  )}
-                >
-                  {track.title}
+
+      {player.queue.length ? (
+        <ul className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-5">
+          {player.queue.map((track, index) => (
+            <li key={`${track.id}-${index}`} className="group relative">
+              <button
+                type="button"
+                onClick={() => player.playCollection(player.queue, index)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-lg px-3 py-2 pr-9 text-left transition-colors hover:bg-surface-raised",
+                  index === player.index && "bg-surface-raised",
+                )}
+              >
+                <Artwork seed={track.id} src={track.artworkUrl} alt="" className="size-9" rounded="rounded-md" />
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      "block truncate text-sm",
+                      index === player.index ? "text-primary" : "text-foreground",
+                    )}
+                  >
+                    {track.title}
+                  </span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate text-xs text-muted-foreground">{track.artist}</span>
+                    {autoIds.has(track.id) && (
+                      <span className="label-mono shrink-0 rounded-full border border-border px-1.5 text-[9px] text-muted-foreground">
+                        Radio
+                      </span>
+                    )}
+                  </span>
                 </span>
-                <span className="block truncate text-xs text-muted-foreground">{track.artist}</span>
-              </span>
-              <span className="font-mono text-[10px] text-muted-foreground">
-                {formatDuration(track.durationSec)}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {formatDuration(track.durationSec)}
+                </span>
+              </button>
+              {index !== player.index && (
+                <button
+                  type="button"
+                  onClick={() => player.removeFromQueue(index)}
+                  aria-label={`Remove ${track.title} from the queue`}
+                  className="absolute right-1.5 top-1/2 hidden -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-background hover:text-destructive group-hover:block"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="px-5 pb-5 text-sm text-muted-foreground">
+          The queue is empty. Play something to get started.
+        </p>
+      )}
     </div>
   );
 }
 
-function LyricsPane() {
+export function LyricsPane() {
+
   const player = usePlayer();
   const track = player.current;
   const lyrics = useLyrics(track ?? null);

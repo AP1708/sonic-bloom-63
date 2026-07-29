@@ -12,7 +12,6 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { PlayerProvider } from "@/components/player/player-provider";
-import { PictureInPictureProvider } from "@/components/player/pip-player";
 import { supabase } from "@/integrations/supabase/client";
 import {
   clearPersistedCache,
@@ -170,10 +169,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <PlayerProvider>
-          <PictureInPictureProvider>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-          </PictureInPictureProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+
         </PlayerProvider>
       </ThemeProvider>
     </QueryClientProvider>
