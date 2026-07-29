@@ -10,6 +10,8 @@ import {
 } from "react";
 import type { Track } from "@/lib/music/types";
 import { audioUrlFor } from "@/lib/music/catalog";
+import { spotifyPlayback } from "@/lib/music/spotify-playback";
+import { readSession as readSpotifySession } from "@/lib/music/spotify-auth";
 import { recordPlay } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 
@@ -103,10 +105,19 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const ytPlayerRef = useRef<YTPlayer | null>(null);
   const [ytReady, setYtReady] = useState(false);
 
+  const spotifyActiveRef = useRef(false);
+  const [spotifyStreaming, setSpotifyStreaming] = useState(false);
+
+  const spotifyUri = state.current?.spotifyUri ?? null;
+  const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
+
   const currentAudioUrl = state.current
-    ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
+    ? useSpotifySdk
+      ? null
+      : (state.current.audioUrl ?? state.current.previewUrl ?? audioUrlFor(state.current.id))
     : null;
-  const currentVideoId = !currentAudioUrl ? (state.current?.youtubeVideoId ?? null) : null;
+  const currentVideoId =
+    !currentAudioUrl && !useSpotifySdk ? (state.current?.youtubeVideoId ?? null) : null;
 
 
   /** Advance the queue when a track finishes (shared by the audio element and the clock). */
@@ -230,9 +241,73 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => window.clearInterval(id);
   }, [currentVideoId, ytReady, state.isPlaying]);
 
-  // Playback clock for sources without a stream or an embedded player (e.g. Spotify).
+  // ---- Spotify Web Playback SDK (full tracks for linked Premium accounts) ----
   useEffect(() => {
-    if (!state.isPlaying || !state.current || currentAudioUrl || currentVideoId) return;
+    spotifyPlayback.onState = (playback) => {
+      if (!spotifyActiveRef.current) return;
+      if (
+        playback.durationSec > 0 &&
+        playback.positionSec >= playback.durationSec - 0.5 &&
+        playback.paused
+      ) {
+        handleEnded();
+        return;
+      }
+      setState((prev) => {
+        if (!prev.current) return prev;
+        const current =
+          playback.durationSec && Math.abs(prev.current.durationSec - playback.durationSec) > 1
+            ? { ...prev.current, durationSec: Math.round(playback.durationSec) }
+            : prev.current;
+        const queue =
+          current === prev.current
+            ? prev.queue
+            : prev.queue.map((t, i) => (i === prev.index ? current : t));
+        return { ...prev, current, queue, progressSec: playback.positionSec, isPlaying: !playback.paused };
+      });
+    };
+    return () => {
+      spotifyPlayback.onState = null;
+    };
+  }, [handleEnded]);
+
+  useEffect(() => {
+    if (!spotifyUri) {
+      if (spotifyActiveRef.current) void spotifyPlayback.pause();
+      spotifyActiveRef.current = false;
+      setSpotifyStreaming(false);
+      return;
+    }
+    if (!readSpotifySession()) {
+      setSpotifyStreaming(false);
+      return;
+    }
+    let cancelled = false;
+    void spotifyPlayback.play(spotifyUri).then((ok) => {
+      if (cancelled) return;
+      spotifyActiveRef.current = ok;
+      setSpotifyStreaming(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [spotifyUri]);
+
+  useEffect(() => {
+    if (!useSpotifySdk) return;
+    if (state.isPlaying) void spotifyPlayback.resume();
+    else void spotifyPlayback.pause();
+  }, [state.isPlaying, useSpotifySdk]);
+
+  useEffect(() => {
+    if (!useSpotifySdk) return;
+    void spotifyPlayback.setVolume(state.muted ? 0 : state.volume);
+  }, [state.volume, state.muted, useSpotifySdk]);
+
+  // Playback clock for sources without a stream or an embedded player.
+  useEffect(() => {
+    if (!state.isPlaying || !state.current || currentAudioUrl || currentVideoId || useSpotifySdk)
+      return;
     const id = window.setInterval(() => {
       setState((prev) => {
         if (!prev.current) return prev;
@@ -247,7 +322,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [state.isPlaying, state.current, state.index, currentAudioUrl, currentVideoId]);
 
   useEffect(() => {
-    if (currentAudioUrl || currentVideoId) return;
+    if (currentAudioUrl || currentVideoId || useSpotifySdk) return;
     if (!state.current) return;
     if (state.progressSec >= state.current.durationSec - 1 && state.isPlaying) {
       const id = window.setTimeout(handleEnded, 1000);
@@ -308,6 +383,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const clamped = Math.min(Math.max(0, seconds), prev.current?.durationSec ?? 0);
           if (audioRef.current && audioRef.current.src) audioRef.current.currentTime = clamped;
           if (prev.current?.youtubeVideoId) ytPlayerRef.current?.seekTo(clamped, true);
+          if (spotifyActiveRef.current) void spotifyPlayback.seek(clamped);
 
           return { ...prev, progressSec: clamped };
         }),
