@@ -26,6 +26,9 @@ import {
 import { useSession } from "@/hooks/use-session";
 import { useMediaSession } from "@/hooks/use-media-session";
 import { findRelatedTracks } from "@/lib/music/related";
+import { useOfflineAudioUrl } from "@/hooks/use-offline";
+import { recordListen } from "@/hooks/use-listening-history";
+
 
 export type SidePanel = "queue" | "lyrics" | null;
 
