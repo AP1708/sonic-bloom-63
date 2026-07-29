@@ -16,6 +16,37 @@ import { useSession } from "@/hooks/use-session";
 export type SidePanel = "queue" | "lyrics" | null;
 export type RepeatMode = "off" | "all" | "one";
 
+/** Minimal surface of the official YouTube IFrame Player API that we use. */
+interface YTPlayer {
+  loadVideoById: (id: string) => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  setVolume: (value: number) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  destroy: () => void;
+}
+
+let ytApiPromise: Promise<void> | null = null;
+
+/** Loads the IFrame Player API script once, client-side only. */
+function loadYouTubeApi(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  const w = window as unknown as { YT?: { Player?: unknown }; onYouTubeIframeAPIReady?: () => void };
+  if (w.YT?.Player) return Promise.resolve();
+  if (ytApiPromise) return ytApiPromise;
+  ytApiPromise = new Promise<void>((resolve) => {
+    w.onYouTubeIframeAPIReady = () => resolve();
+    const script = document.createElement("script");
+    script.src = "https://www.youtube.com/iframe_api";
+    script.async = true;
+    document.head.appendChild(script);
+  });
+  return ytApiPromise;
+}
+
+
 interface PlayerState {
   queue: Track[];
   index: number;
