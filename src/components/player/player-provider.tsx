@@ -30,7 +30,7 @@ export type RepeatMode = "off" | "all" | "one";
 
 /** Minimal surface of the official YouTube IFrame Player API that we use. */
 interface YTPlayer {
-  loadVideoById: (id: string) => void;
+  loadVideoById: (id: string | { videoId: string; startSeconds?: number }) => void;
   playVideo: () => void;
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
@@ -347,7 +347,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [user, lastPosition, state.queue.length]);
 
   /** Applies (and consumes) a pending resume offset for the active track. */
-  const takeResumeOffset = useCallback((trackId: string | undefined) => {
+  const takeResumeOffset = useCallback((trackId: string | null | undefined) => {
     const pending = pendingResumeRef.current;
     if (!pending || !trackId || pending.trackId !== trackId) return null;
     pendingResumeRef.current = null;
