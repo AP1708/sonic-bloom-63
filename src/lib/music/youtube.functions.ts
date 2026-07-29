@@ -66,7 +66,11 @@ export const searchYouTube = createServerFn({ method: "GET" })
     if (!searchRes.ok) {
       const body = await searchRes.text();
       console.error(`YouTube search failed [${searchRes.status}]: ${body}`);
+      // Quota / rate limit: degrade quietly so the other sources still render.
+      if (searchRes.status === 429) return [];
       if (searchRes.status === 400 || searchRes.status === 403) {
+        // 403 is also how the Data API reports quotaExceeded / rateLimitExceeded.
+        if (/quota|rateLimit/i.test(body)) return [];
         throw new Error(
           "YouTube rejected the API key — check that it is valid and that YouTube Data API v3 is enabled.",
         );
