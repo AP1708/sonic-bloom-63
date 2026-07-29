@@ -1,17 +1,23 @@
 import { searchYouTube } from "./youtube.functions";
+import { searchSpotify } from "./spotify.functions";
 import type { Track } from "./types";
 
 /**
- * Playback resolution for tracks that carry metadata but no stream.
+ * Cross-source playback resolution.
  *
- * Spotify tracks are only streamable in-app with a linked Premium session, and
- * a lot of them ship without a 30s preview. To keep every track audible we look
- * up a matching video on YouTube and play it through the official IFrame
- * player. Results are memoised per track for the session.
+ * Every track carries metadata from one platform but should be playable on
+ * both: we look up a matching YouTube video (official IFrame player) and a
+ * matching Spotify track URI (Web Playback SDK, Premium sessions) so the
+ * player can use whichever source is available. Results are memoised per
+ * track for the session.
  */
 
 const cache = new Map<string, string | null>();
 const inFlight = new Map<string, Promise<string | null>>();
+
+const spotifyCache = new Map<string, string | null>();
+const spotifyInFlight = new Map<string, Promise<string | null>>();
+
 
 function normalise(value: string): string {
   return value
@@ -58,5 +64,34 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
   })();
 
   inFlight.set(key, promise);
+  return promise;
+}
+
+/** Finds a Spotify track URI for a track that came from another source. */
+export async function resolveSpotifyUri(track: Track): Promise<string | null> {
+  if (track.spotifyUri) return track.spotifyUri;
+  const key = track.id;
+  if (spotifyCache.has(key)) return spotifyCache.get(key) ?? null;
+  const existing = spotifyInFlight.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      const results = await searchSpotify({
+        data: { query: `${track.artist} ${track.title}`.trim(), limit: 5 },
+      });
+      const hit = results.find((item) => matches(track, item)) ?? null;
+      const uri = hit?.spotifyUri ?? null;
+      spotifyCache.set(key, uri);
+      return uri;
+    } catch {
+      spotifyCache.set(key, null);
+      return null;
+    } finally {
+      spotifyInFlight.delete(key);
+    }
+  })();
+
+  spotifyInFlight.set(key, promise);
   return promise;
 }

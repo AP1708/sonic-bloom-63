@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { audioUrlFor } from "@/lib/music/catalog";
 import { spotifyPlayback } from "@/lib/music/spotify-playback";
 import { readSession as readSpotifySession } from "@/lib/music/spotify-auth";
-import { resolveYouTubeVideoId } from "@/lib/music/resolve-playback";
+import { resolveYouTubeVideoId, resolveSpotifyUri } from "@/lib/music/resolve-playback";
 
 import { recordPlay } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
@@ -114,13 +114,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [resolvedVideoId, setResolvedVideoId] = useState<{ trackId: string; videoId: string | null } | null>(
     null,
   );
-
-  const spotifyUri = state.current?.spotifyUri ?? null;
-  const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
+  /** Spotify URI resolved on demand for tracks that came from another source. */
+  const [resolvedSpotify, setResolvedSpotify] = useState<{ trackId: string; uri: string | null } | null>(
+    null,
+  );
 
   const directAudioUrl = state.current
     ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
+
+  const ownSpotifyUri = state.current?.spotifyUri ?? null;
+  const fallbackSpotifyUri =
+    state.current && resolvedSpotify?.trackId === state.current.id ? resolvedSpotify.uri : null;
+  // A resolved match only takes over when there is no direct stream to play.
+  const spotifyUri = ownSpotifyUri ?? (directAudioUrl ? null : fallbackSpotifyUri);
+  const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
+
 
   const ownVideoId = state.current?.youtubeVideoId ?? null;
   const fallbackVideoId =
@@ -135,18 +144,35 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const videoIdRef = useRef<string | null>(null);
   videoIdRef.current = currentVideoId;
 
-
-
-  // Resolve a YouTube match for metadata-only tracks (Spotify without Premium/preview).
+  // Resolve a Spotify match for tracks from other sources, so a linked Premium
+  // session can stream anything the catalog surfaces.
   useEffect(() => {
     const track = state.current;
-    if (!track || useSpotifySdk || directAudioUrl || ownVideoId) return;
+    if (!track || ownSpotifyUri) return;
+    if (!readSpotifySession()) return;
+    if (resolvedSpotify?.trackId === track.id) return;
+
+    let cancelled = false;
+    void resolveSpotifyUri(track).then((uri) => {
+      if (cancelled) return;
+      setResolvedSpotify({ trackId: track.id, uri });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.current, ownSpotifyUri, resolvedSpotify]);
+
+  // Resolve a YouTube match for every track without a direct stream, so the
+  // video source stays ready even while Spotify is streaming.
+  useEffect(() => {
+    const track = state.current;
+    if (!track || directAudioUrl || ownVideoId) return;
     if (resolvedVideoId?.trackId === track.id) return;
     let cancelled = false;
     void resolveYouTubeVideoId(track).then((videoId) => {
       if (cancelled) return;
       setResolvedVideoId({ trackId: track.id, videoId });
-      if (!videoId && !track.previewUrl) {
+      if (!videoId && !track.previewUrl && !spotifyUri) {
         toast("No playable audio found", {
           description: `Couldn't find a stream for “${track.title}”.`,
         });
@@ -155,7 +181,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [state.current, useSpotifySdk, directAudioUrl, ownVideoId, resolvedVideoId]);
+  }, [state.current, directAudioUrl, ownVideoId, resolvedVideoId, spotifyUri]);
+
 
 
 
