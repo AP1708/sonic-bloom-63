@@ -24,6 +24,7 @@ import {
   useLastPlaybackPosition,
 } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
+import { useMediaSession } from "@/hooks/use-media-session";
 
 export type SidePanel = "queue" | "lyrics" | null;
 export type RepeatMode = "off" | "all" | "one";
@@ -724,6 +725,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // OS-level controls: lock screen, notification shade, Bluetooth remotes.
+  const isPlayingRef = useRef(state.isPlaying);
+  isPlayingRef.current = state.isPlaying;
+  const mediaPlay = useCallback(() => {
+    if (!isPlayingRef.current) actions.toggle();
+  }, [actions]);
+  const mediaPause = useCallback(() => {
+    if (isPlayingRef.current) actions.toggle();
+  }, [actions]);
+
+  useMediaSession({
+    track: state.current,
+    isPlaying: state.isPlaying,
+    progressSec: state.progressSec,
+    durationSec: state.current?.durationSec ?? 0,
+    onPlay: mediaPlay,
+    onPause: mediaPause,
+    onNext: actions.next,
+    onPrevious: actions.previous,
+    onSeek: actions.seek,
+  });
+
   const value = useMemo(
     () => ({ ...state, ...actions, status, statusLabel, activeSource }),
     [state, actions, status, statusLabel, activeSource],
@@ -735,6 +758,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       <audio
         ref={audioRef}
         preload="metadata"
+        playsInline
         crossOrigin="anonymous"
         onTimeUpdate={(event) => {
           const time = event.currentTarget.currentTime;
