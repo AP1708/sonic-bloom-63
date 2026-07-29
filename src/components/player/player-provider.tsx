@@ -114,8 +114,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [resolvedVideoId, setResolvedVideoId] = useState<{ trackId: string; videoId: string | null } | null>(
     null,
   );
+  /** Spotify URI resolved on demand for tracks that came from another source. */
+  const [resolvedSpotify, setResolvedSpotify] = useState<{ trackId: string; uri: string | null } | null>(
+    null,
+  );
 
-  const spotifyUri = state.current?.spotifyUri ?? null;
+  const ownSpotifyUri = state.current?.spotifyUri ?? null;
+  const fallbackSpotifyUri =
+    state.current && resolvedSpotify?.trackId === state.current.id ? resolvedSpotify.uri : null;
+  const spotifyUri = ownSpotifyUri ?? fallbackSpotifyUri;
   const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
 
   const directAudioUrl = state.current
@@ -135,18 +142,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const videoIdRef = useRef<string | null>(null);
   videoIdRef.current = currentVideoId;
 
-
-
-  // Resolve a YouTube match for metadata-only tracks (Spotify without Premium/preview).
+  // Resolve a Spotify match for tracks from other sources, so a linked Premium
+  // session can stream anything the catalog surfaces.
   useEffect(() => {
     const track = state.current;
-    if (!track || useSpotifySdk || directAudioUrl || ownVideoId) return;
+    if (!track || ownSpotifyUri) return;
+    if (!readSpotifySession()) return;
+    if (resolvedSpotify?.trackId === track.id) return;
+    let cancelled = false;
+    void resolveSpotifyUri(track).then((uri) => {
+      if (cancelled) return;
+      setResolvedSpotify({ trackId: track.id, uri });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.current, ownSpotifyUri, resolvedSpotify]);
+
+  // Resolve a YouTube match for every track without a direct stream, so the
+  // video source stays ready even while Spotify is streaming.
+  useEffect(() => {
+    const track = state.current;
+    if (!track || directAudioUrl || ownVideoId) return;
     if (resolvedVideoId?.trackId === track.id) return;
     let cancelled = false;
     void resolveYouTubeVideoId(track).then((videoId) => {
       if (cancelled) return;
       setResolvedVideoId({ trackId: track.id, videoId });
-      if (!videoId && !track.previewUrl) {
+      if (!videoId && !track.previewUrl && !spotifyUri) {
         toast("No playable audio found", {
           description: `Couldn't find a stream for “${track.title}”.`,
         });
@@ -155,7 +178,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [state.current, useSpotifySdk, directAudioUrl, ownVideoId, resolvedVideoId]);
+  }, [state.current, directAudioUrl, ownVideoId, resolvedVideoId, spotifyUri]);
+
 
 
 
