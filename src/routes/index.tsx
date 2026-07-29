@@ -44,7 +44,7 @@ function HomePage() {
           <p className="label-mono">{new Date().toLocaleDateString(undefined, { weekday: "long" })}</p>
           <h1 className="text-4xl">{greeting()}</h1>
           <p className="max-w-xl text-sm text-muted-foreground">
-            Everything you listen to across Spotify and YouTube, in one queue.
+            Golden-era Indian recordings streaming in full, plus Spotify and YouTube in one queue.
           </p>
         </header>
 
