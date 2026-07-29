@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
+  ArrowDownToLine,
   Compass,
   Heart,
   Home,
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { usePlaylists } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 import { useIsAdmin } from "@/hooks/use-admin";
+import { useOfflineIds } from "@/hooks/use-offline";
 
 const NAV = [
   { to: "/", label: "Home", icon: Home, exact: true },
@@ -21,8 +23,9 @@ const NAV = [
   { to: "/artists", label: "Artists", icon: Mic2 },
   { to: "/library", label: "Your library", icon: Library },
   { to: "/liked", label: "Liked songs", icon: Heart },
+  { to: "/downloads", label: "Downloads", icon: ArrowDownToLine },
 ] as {
-  to: "/" | "/search" | "/artists" | "/library" | "/liked";
+  to: "/" | "/search" | "/artists" | "/library" | "/liked" | "/downloads";
   label: string;
   icon: typeof Home;
   exact?: boolean;
@@ -33,6 +36,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useSession();
   const { data: playlists } = usePlaylists(user?.id);
   const { data: isAdmin } = useIsAdmin(user?.id);
+  const offlineIds = useOfflineIds();
+
 
   return (
     <nav className="flex h-full w-64 shrink-0 flex-col gap-6 border-r border-border bg-surface px-4 py-6">
