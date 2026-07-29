@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Track } from "@/lib/music/types";
+import { toast } from "sonner";
 import { audioUrlFor } from "@/lib/music/catalog";
 import { spotifyPlayback } from "@/lib/music/spotify-playback";
 import { readSession as readSpotifySession } from "@/lib/music/spotify-auth";
