@@ -1,4 +1,5 @@
 import { exchangeSpotifyCode, refreshSpotifyToken } from "@/lib/music/spotify.functions";
+import { linkSpotifyAccount } from "@/lib/music/connections.functions";
 
 /**
  * Browser-side Spotify user session (Authorization Code + PKCE).
@@ -18,6 +19,9 @@ export const SPOTIFY_SCOPES = [
   "user-read-private",
   "user-read-playback-state",
   "user-modify-playback-state",
+  "playlist-read-private",
+  "playlist-read-collaborative",
+  "user-library-read",
 ].join(" ");
 
 export interface SpotifySession {
@@ -90,6 +94,15 @@ export async function completeSpotifyLogin(code: string): Promise<string> {
     data: { code, codeVerifier, redirectUri: redirectUri() },
   });
   sessionStorage.removeItem(VERIFIER_KEY);
+  // Mirror the session server-side (encrypted) so library imports can run there.
+  await linkSpotifyAccount({
+    data: {
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      expiresAt: Date.now() + tokens.expiresInSec * 1000,
+      scope: tokens.scope,
+    },
+  }).catch(() => undefined);
   writeSession({
     accessToken: tokens.accessToken,
     refreshToken: tokens.refreshToken,

@@ -1,36 +1,45 @@
 ## Goal
 
-Keep music playing when you switch apps or the screen turns off, and let you pop the player out into a floating picture-in-picture window.
+Let each listener link their own Spotify and YouTube accounts from the top bar, import their playlists and liked songs into Sonance, and push playlist changes back to YouTube.
 
-## What gets built
+## What exists today
 
-**1. Lock screen / notification controls (Media Session)**
-- New `useMediaSession` hook wired into `player-provider.tsx`.
-- Publishes title, artist, album and artwork for the current track, so Android/iOS lock screens, Chrome/Edge media hubs and Bluetooth/car controls show the song.
-- Registers handlers for play, pause, next, previous, seek forward/back and seek-to, mapped to the existing player actions.
-- Keeps `navigator.mediaSession.playbackState` and `setPositionState` in sync with the existing progress clock so the scrubber on the lock screen is accurate.
+- Spotify: PKCE login already works (`spotify-auth.ts`, `use-spotify.ts`, `/spotify/callback`), surfaced as a "Connect Spotify" pill in the app shell. Token lives in browser storage; nothing is imported.
+- YouTube: server-side API-key search only (`youtube.server.ts`). No per-user account concept at all.
 
-**2. Background playback hardening**
-- Keep the `<audio>` element alive and never tear it down on route changes (it already lives in the provider — verify nothing pauses it on visibility change).
-- Add a `playsInline` attribute and avoid pausing on `visibilitychange`.
-- When the tab is hidden, prefer sources that survive backgrounding: direct Archive audio and the Spotify SDK. If the current source is the YouTube iframe and the page goes to the background on mobile, show a one-time hint that YouTube-sourced tracks can pause when backgrounded (browser policy we cannot override), and try to re-resolve to a direct/Spotify source when one exists.
+## 1. Connection status in the top bar
 
-**3. Picture-in-picture mini player**
-- New "Pop out player" button in `player-bar.tsx` and `fullscreen-player.tsx`.
-- Uses the Document Picture-in-Picture API (Chrome/Edge desktop) to open a small always-on-top window rendering a compact player: artwork, title/artist, play/pause, next/prev and progress. Styles are cloned from the app so it matches the Neon Mint theme.
-- For YouTube-sourced tracks, the existing floating YouTube iframe is moved into the PiP window so video/audio keeps playing, and moved back when PiP closes.
-- The button hides automatically when the browser has no PiP support.
+Replace the single Spotify pill with a small "Connections" cluster: two pills (Spotify, YouTube) each showing linked / not-linked state, with a dropdown per pill offering Connect, Import now, Last synced …, and Disconnect. Compact icon-only on mobile.
 
-**4. Installability (helps mobile background audio)**
-- Add a web app manifest plus icons and head tags so the app can be added to the home screen. Installed standalone apps on Android keep audio running with the screen off far more reliably than a browser tab. No service worker or offline mode.
+## 2. Spotify: link + import
 
-## Honest limitations
+- Extend the existing PKCE scopes to include `playlist-read-private`, `playlist-read-collaborative`, and `user-library-read`.
+- New server functions to fetch the user's Spotify playlists, playlist tracks, and saved tracks (paginated), called with the user's Spotify token.
+- Import writes into the existing `playlists` / `playlist_tracks` / `liked_songs` tables, tagged with their Spotify source ID so re-syncing updates instead of duplicating.
+- Import runs on first connect and via a manual "Import now" action, with a progress toast.
 
-- Audio can keep playing with the screen off or the app backgrounded, but **not after the browser/tab is fully closed** — no web app can do that.
-- On iOS Safari, background audio works for direct audio streams; YouTube-iframe-sourced tracks will pause when the app is backgrounded (Apple/YouTube policy).
-- Document picture-in-picture is desktop Chromium only today; other browsers get the button hidden.
+## 3. YouTube: link + import + write-back
+
+YouTube Data API requires a Google OAuth client that you own; Lovable has no ready-made YouTube connector. So:
+
+- You create an OAuth client in the Google Cloud console (Web application) with the app's callback URL, requesting scope `https://www.googleapis.com/auth/youtube` (read + write). I'll give you the exact redirect URI and scope list, then ask for the client ID and secret through the secure secret form.
+- Server-side OAuth code exchange and refresh; tokens stored per user, encrypted, in a new `user_music_connections` table (provider, encrypted refresh token, expiry, external account name, last synced). Server-only access — nothing touches the browser.
+- Import: user's YouTube playlists, their items, and Liked videos → Sonance playlists / liked songs, same de-duplicated mapping as Spotify.
+- Write-back: creating or editing a Sonance playlist that originated from YouTube (or one you explicitly push) calls `playlists.insert` / `playlistItems.insert|delete` on the user's account. Push is an explicit "Sync to YouTube" action on the playlist page, not silent background writing.
+
+## 4. Housekeeping
+
+- Disconnect clears stored tokens (and revokes with the provider), leaves imported content in place.
+- Failures surface as readable toasts (expired token → prompt to reconnect; YouTube quota → retry later).
+- Imported tracks keep working with the existing playback resolver, so they play through whichever source resolves.
 
 ## Technical notes
 
-- Files touched: `src/components/player/player-provider.tsx`, `player-bar.tsx`, `fullscreen-player.tsx`, new `src/hooks/use-media-session.ts`, new `src/components/player/pip-player.tsx`, `public/manifest.webmanifest` + icons, head tags in `src/routes/__root.tsx`.
-- No database or backend changes.
+- New table `user_music_connections` (user_id, provider, encrypted tokens, scopes, external_account_label, last_synced_at) with RLS scoped to `auth.uid()` and service-role grants; tokens only readable by server functions.
+- `playlists` / `playlist_tracks` gain `source_provider` and `source_external_id` columns for idempotent re-sync and write-back mapping.
+- All provider calls go through `createServerFn` handlers — no provider tokens in the browser.
+- Spotify's browser PKCE session stays as-is for Premium full-track playback; the new server-side record covers import.
+
+## What I need from you
+
+The Google OAuth client ID and secret (I'll walk you through creating it). Spotify needs nothing new — existing app credentials cover the extra scopes.

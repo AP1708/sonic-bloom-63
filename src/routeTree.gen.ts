@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArtistsIndexRouteImport } from './routes/artists/index'
+import { Route as YoutubeCallbackRouteImport } from './routes/youtube/callback'
 import { Route as SpotifyCallbackRouteImport } from './routes/spotify/callback'
 import { Route as ArtistsArtistIdRouteImport } from './routes/artists/$artistId'
 import { Route as AuthenticatedLikedRouteImport } from './routes/_authenticated/liked'
@@ -50,6 +51,11 @@ const IndexRoute = IndexRouteImport.update({
 const ArtistsIndexRoute = ArtistsIndexRouteImport.update({
   id: '/artists/',
   path: '/artists/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const YoutubeCallbackRoute = YoutubeCallbackRouteImport.update({
+  id: '/youtube/callback',
+  path: '/youtube/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SpotifyCallbackRoute = SpotifyCallbackRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
   '/spotify/callback': typeof SpotifyCallbackRoute
+  '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
   '/spotify/callback': typeof SpotifyCallbackRoute
+  '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/_authenticated/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
   '/spotify/callback': typeof SpotifyCallbackRoute
+  '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/liked'
     | '/artists/$artistId'
     | '/spotify/callback'
+    | '/youtube/callback'
     | '/artists/'
     | '/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/liked'
     | '/artists/$artistId'
     | '/spotify/callback'
+    | '/youtube/callback'
     | '/artists'
     | '/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/_authenticated/liked'
     | '/artists/$artistId'
     | '/spotify/callback'
+    | '/youtube/callback'
     | '/artists/'
     | '/_authenticated/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ArtistsArtistIdRoute: typeof ArtistsArtistIdRoute
   SpotifyCallbackRoute: typeof SpotifyCallbackRoute
+  YoutubeCallbackRoute: typeof YoutubeCallbackRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
   ApiPublicHooksYoutubeKeyHealthRoute: typeof ApiPublicHooksYoutubeKeyHealthRoute
 }
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       path: '/artists'
       fullPath: '/artists/'
       preLoaderRoute: typeof ArtistsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/youtube/callback': {
+      id: '/youtube/callback'
+      path: '/youtube/callback'
+      fullPath: '/youtube/callback'
+      preLoaderRoute: typeof YoutubeCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/spotify/callback': {
@@ -313,6 +333,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ArtistsArtistIdRoute: ArtistsArtistIdRoute,
   SpotifyCallbackRoute: SpotifyCallbackRoute,
+  YoutubeCallbackRoute: YoutubeCallbackRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
   ApiPublicHooksYoutubeKeyHealthRoute: ApiPublicHooksYoutubeKeyHealthRoute,
 }

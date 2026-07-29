@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Download, Play, Trash2, Users } from "lucide-react";
+import { Download, Loader2, Play, Trash2, Users, Youtube } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Artwork } from "@/components/music/artwork";
 import { EmptyState, TrackListHeader, TrackRow } from "@/components/music/track-row";
@@ -14,6 +14,8 @@ import {
 import { useSession } from "@/hooks/use-session";
 import { formatTotalTime } from "@/lib/format";
 import { downloadPlaylist } from "@/lib/music/playlist-transfer";
+import { useSyncPlaylistToYouTube } from "@/hooks/use-connections";
+import { useMusicConnections } from "@/hooks/use-connections";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +44,11 @@ function PlaylistPage() {
   const { data: liked } = useLikedSongs(user?.id);
   const toggleLike = useToggleLike(user?.id);
   const removeTrack = useRemovePlaylistTrack();
+  const connections = useMusicConnections();
+  const pushToYouTube = useSyncPlaylistToYouTube();
+  const youtubeLinked = Boolean(
+    connections.data?.some((connection) => connection.provider === "youtube"),
+  );
 
   const total = (tracks ?? []).reduce((sum, track) => sum + track.durationSec, 0);
   const isLiked = (id: string) => Boolean(liked?.some((track) => track.id === id));
@@ -103,6 +110,21 @@ function PlaylistPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              {youtubeLinked ? (
+                <button
+                  type="button"
+                  disabled={!tracks?.length || pushToYouTube.isPending}
+                  onClick={() => pushToYouTube.mutate(playlistId)}
+                  className="flex w-fit items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-medium disabled:opacity-40"
+                >
+                  {pushToYouTube.isPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Youtube className="size-4" />
+                  )}
+                  Sync to YouTube
+                </button>
+              ) : null}
             </div>
           </div>
         </header>
