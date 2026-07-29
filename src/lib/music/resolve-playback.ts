@@ -141,16 +141,33 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
 
   const promise = (async () => {
     try {
-      const query = `${track.artist} ${track.title} official audio`.replace(/\s+/g, " ").trim();
-      const results = await searchYouTube({ data: { query, limit: 10 } });
-      let best: { track: Track; score: number } | null = null;
-      for (const item of results) {
-        const score = scoreCandidate(track, item);
-        if (score <= 0) continue;
-        if (!best || score > best.score) best = { track: item, score };
+      const base = `${track.artist} ${track.title}`.replace(/\s+/g, " ").trim();
+      const pick = (results: Track[], minScore: number) => {
+        let best: { track: Track; score: number } | null = null;
+        for (const item of results) {
+          if (!item.youtubeVideoId) continue;
+          const score = scoreCandidate(track, item);
+          if (score <= minScore) continue;
+          if (!best || score > best.score) best = { track: item, score };
+        }
+        return best?.track.youtubeVideoId ?? null;
+      };
+
+      // Pass 1: strict — prefer official audio uploads that match closely.
+      const strict = await searchYouTube({ data: { query: `${base} official audio`, limit: 10 } });
+      let videoId = pick(strict, 0);
+
+      // Pass 2: plain query, relaxed threshold — a playable near-match beats silence.
+      if (!videoId) {
+        const relaxed = await searchYouTube({ data: { query: base, limit: 10 } });
+        videoId =
+          pick(relaxed, 0) ??
+          pick(relaxed, -1) ??
+          pick(strict, -1) ??
+          relaxed.find((item) => item.youtubeVideoId)?.youtubeVideoId ??
+          null;
       }
-      // No confident match: better to stay silent than play the wrong song.
-      const videoId = best?.track.youtubeVideoId ?? null;
+
       cache.set(key, videoId);
       return videoId;
     } catch {
@@ -160,6 +177,7 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
       inFlight.delete(key);
     }
   })();
+
 
   inFlight.set(key, promise);
   return promise;
