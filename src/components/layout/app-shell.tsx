@@ -1,12 +1,13 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, LogOut, Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
 import { SpotifyConnectButton } from "@/components/music/spotify-connect";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { useTheme } from "@/components/theme/theme";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
 import { useLikedSongs, useToggleLike } from "@/hooks/use-library";
