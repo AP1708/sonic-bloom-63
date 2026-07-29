@@ -12,9 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as ArtistsRouteImport } from './routes/artists'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ArtistsIndexRouteImport } from './routes/artists/index'
 import { Route as AuthenticatedLikedRouteImport } from './routes/_authenticated/liked'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -35,11 +35,6 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ArtistsRoute = ArtistsRouteImport.update({
-  id: '/artists',
-  path: '/artists',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
@@ -47,6 +42,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ArtistsIndexRoute = ArtistsIndexRouteImport.update({
+  id: '/artists/',
+  path: '/artists/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedLikedRoute = AuthenticatedLikedRouteImport.update({
@@ -73,83 +73,83 @@ const AuthenticatedPlaylistPlaylistIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/artists': typeof ArtistsRoute
   '/auth': typeof AuthRoute
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
+  '/artists/': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/artists': typeof ArtistsRoute
   '/auth': typeof AuthRoute
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
+  '/artists': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
-  '/artists': typeof ArtistsRoute
   '/auth': typeof AuthRoute
   '/search': typeof SearchRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/liked': typeof AuthenticatedLikedRoute
+  '/artists/': typeof ArtistsIndexRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/artists'
     | '/auth'
     | '/search'
     | '/sitemap.xml'
     | '/admin'
     | '/library'
     | '/liked'
+    | '/artists/'
     | '/playlist/$playlistId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/artists'
     | '/auth'
     | '/search'
     | '/sitemap.xml'
     | '/admin'
     | '/library'
     | '/liked'
+    | '/artists'
     | '/playlist/$playlistId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
-    | '/artists'
     | '/auth'
     | '/search'
     | '/sitemap.xml'
     | '/_authenticated/admin'
     | '/_authenticated/library'
     | '/_authenticated/liked'
+    | '/artists/'
     | '/_authenticated/playlist/$playlistId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
-  ArtistsRoute: typeof ArtistsRoute
   AuthRoute: typeof AuthRoute
   SearchRoute: typeof SearchRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ArtistsIndexRoute: typeof ArtistsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -175,13 +175,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/artists': {
-      id: '/artists'
-      path: '/artists'
-      fullPath: '/artists'
-      preLoaderRoute: typeof ArtistsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated': {
       id: '/_authenticated'
       path: ''
@@ -194,6 +187,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/artists/': {
+      id: '/artists/'
+      path: '/artists'
+      fullPath: '/artists/'
+      preLoaderRoute: typeof ArtistsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/liked': {
@@ -247,10 +247,10 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
-  ArtistsRoute: ArtistsRoute,
   AuthRoute: AuthRoute,
   SearchRoute: SearchRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ArtistsIndexRoute: ArtistsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
