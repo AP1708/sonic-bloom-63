@@ -188,10 +188,15 @@ export async function probeApiKeys(): Promise<KeyHealthReport[]> {
   const keys = apiKeys();
   await Promise.all(
     keys.map(async (key) => {
-      const url = new URL("https://www.googleapis.com/youtube/v3/videos");
+      // Probe the *search* endpoint: that's the quota real searches burn
+      // (100 units each), so a videos.list ping would report false health.
+      const url = new URL("https://www.googleapis.com/youtube/v3/search");
       url.searchParams.set("part", "id");
-      url.searchParams.set("id", "dQw4w9WgXcQ");
+      url.searchParams.set("type", "video");
+      url.searchParams.set("maxResults", "1");
+      url.searchParams.set("q", "music");
       url.searchParams.set("key", key);
+
       try {
         const res = await fetch(url);
         if (res.ok) {
@@ -213,3 +218,94 @@ export async function probeApiKeys(): Promise<KeyHealthReport[]> {
 }
 
 
+
+/* ------------------------------------------------------------------ *
+ * Keyless fallback search
+ *
+ * The Data API allows only ~100 searches per key per day. When every key
+ * is out of search quota we fall back to YouTube's own public web search
+ * endpoint (the same one youtube.com uses), which needs no project key.
+ * It returns video IDs that play in the official IFrame player, so audio
+ * keeps working for Spotify matches and YouTube results all day.
+ * ------------------------------------------------------------------ */
+
+const INNERTUBE_KEY = "AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8"; // public web-client key
+const VIDEO_FILTER = "EgIQAQ%3D%3D"; // type=video
+
+interface VideoRenderer {
+  videoId?: string;
+  title?: { runs?: { text?: string }[]; simpleText?: string };
+  ownerText?: { runs?: { text?: string }[] };
+  longBylineText?: { runs?: { text?: string }[] };
+  lengthText?: { simpleText?: string };
+  thumbnail?: { thumbnails?: { url: string }[] };
+}
+
+function collectRenderers(node: unknown, out: VideoRenderer[]): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) collectRenderers(item, out);
+    return;
+  }
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (key === "videoRenderer" && value && typeof value === "object") {
+      out.push(value as VideoRenderer);
+      continue;
+    }
+    collectRenderers(value, out);
+  }
+}
+
+function parseClockDuration(value: string | undefined): number {
+  if (!value) return 0;
+  const parts = value.split(":").map((part) => Number(part));
+  if (parts.some((part) => Number.isNaN(part))) return 0;
+  return parts.reduce((total, part) => total * 60 + part, 0);
+}
+
+export async function innertubeSearch(query: string, limit: number): Promise<Track[]> {
+  const res = await fetch(
+    `https://www.youtube.com/youtubei/v1/search?key=${INNERTUBE_KEY}&prettyPrint=false`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        context: {
+          client: { clientName: "WEB", clientVersion: "2.20240401.00.00", hl: "en", gl: "US" },
+        },
+        query,
+        params: VIDEO_FILTER,
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(`YouTube web search failed (${res.status})`);
+
+  const renderers: VideoRenderer[] = [];
+  collectRenderers(await res.json(), renderers);
+
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+  for (const item of renderers) {
+    const videoId = item.videoId;
+    if (!videoId || seen.has(videoId)) continue;
+    seen.add(videoId);
+    const rawTitle = item.title?.runs?.[0]?.text ?? item.title?.simpleText ?? "";
+    if (!rawTitle) continue;
+    const channel =
+      item.ownerText?.runs?.[0]?.text ?? item.longBylineText?.runs?.[0]?.text ?? "YouTube";
+    const thumbs = item.thumbnail?.thumbnails ?? [];
+    tracks.push({
+      id: `yt-${videoId}`,
+      source: "youtube",
+      title: rawTitle,
+      artist: channel,
+      artworkUrl: thumbs[thumbs.length - 1]?.url ?? null,
+      durationSec: parseClockDuration(item.lengthText?.simpleText),
+      audioUrl: null,
+      youtubeVideoId: videoId,
+      externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+    });
+    if (tracks.length >= limit) break;
+  }
+  return tracks;
+}

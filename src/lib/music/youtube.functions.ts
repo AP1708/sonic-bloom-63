@@ -66,17 +66,33 @@ export const searchYouTube = createServerFn({ method: "GET" })
       apiKeys,
       availableApiKeys,
       markKeyExhausted,
+      innertubeSearch,
     } = await import("./youtube.server");
 
-    if (!apiKeys().length) throw new Error("YouTube is not configured yet.");
     if (!data.query.trim()) return [];
 
     const key = cacheKey(data.query, data.limit);
     const cached = readCache(key);
     if (cached) return cached;
 
+    // No project key configured at all: keyless web search still works.
+    if (!apiKeys().length) {
+      return dedupe(key, async () => {
+        try {
+          const tracks = await innertubeSearch(data.query, data.limit);
+          writeCache(key, tracks);
+          return tracks;
+        } catch (error) {
+          console.error(`YouTube keyless search failed: ${(error as Error).message}`);
+          writeQuotaMiss(key);
+          return [];
+        }
+      });
+    }
+
     return dedupe(key, async () => {
       const keys = availableApiKeys();
+
       let lastError: Error | null = null;
 
       for (const apiKey of keys) {
@@ -165,9 +181,21 @@ export const searchYouTube = createServerFn({ method: "GET" })
         return tracks;
       }
 
-      // Every key failed. Degrade quietly so Spotify/Archive results still render.
+      // Every key failed (usually the 100-search/day quota). Fall back to
+      // YouTube's own keyless web search so playback keeps working.
       console.error(`YouTube search exhausted all ${keys.length} key(s): ${lastError?.message}`);
+      try {
+        const { innertubeSearch } = await import("./youtube.server");
+        const tracks = await innertubeSearch(data.query, data.limit);
+        if (tracks.length) {
+          writeCache(key, tracks);
+          return tracks;
+        }
+      } catch (error) {
+        console.error(`YouTube keyless fallback failed: ${(error as Error).message}`);
+      }
       writeQuotaMiss(key);
       return [];
+
     });
   });
