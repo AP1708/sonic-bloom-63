@@ -1,6 +1,8 @@
 import { DEMO_TRACKS } from "./catalog";
 import { loadFullCatalog, searchFullCatalog } from "./full-catalog";
+import { searchYouTube } from "./youtube.functions";
 import type { MusicSource, SearchOptions, SearchResults, Track } from "./types";
+
 
 /**
  * API abstraction layer.
