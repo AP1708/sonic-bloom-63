@@ -181,9 +181,23 @@ export function TrackMenu({
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
+        {isOffline ? (
+          <DropdownMenuItem
+            onSelect={() => {
+              void removeTrack(track.id).then(() => toast.success("Removed from downloads"));
+            }}
+          >
+            <Trash2 className="size-4" /> Remove download
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem disabled={saving} onSelect={() => void saveOffline()}>
+            <Check className="size-4 opacity-0" /> Save offline
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onSelect={handleDownload}>
-          <Download className="size-4" /> Download
+          <Download className="size-4" /> Download file
         </DropdownMenuItem>
+
       </DropdownMenuContent>
     </DropdownMenu>
   );
