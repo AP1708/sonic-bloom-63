@@ -237,6 +237,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           const time = event.currentTarget.currentTime;
           setState((prev) => (prev.current ? { ...prev, progressSec: time } : prev));
         }}
+        onLoadedMetadata={(event) => {
+          const duration = event.currentTarget.duration;
+          if (!Number.isFinite(duration)) return;
+          setState((prev) => {
+            if (!prev.current || Math.abs(prev.current.durationSec - duration) < 1) return prev;
+            const current = { ...prev.current, durationSec: Math.round(duration) };
+            const queue = prev.queue.map((t, i) => (i === prev.index ? current : t));
+            return { ...prev, current, queue };
+          });
+        }}
         onEnded={handleEnded}
         onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
         onPause={() => setState((prev) => ({ ...prev, isPlaying: false }))}
