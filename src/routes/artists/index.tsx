@@ -6,7 +6,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Artwork } from "@/components/music/artwork";
 import { loadFullCatalog } from "@/lib/music/full-catalog";
 
-export const Route = createFileRoute("/artists")({
+export const Route = createFileRoute("/artists/")({
   head: () => ({
     meta: [
       { title: "Indian playback artists — Sonance" },
