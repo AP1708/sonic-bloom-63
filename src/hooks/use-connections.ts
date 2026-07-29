@@ -7,6 +7,7 @@ import {
   importMusicLibrary,
   listMyConnections,
   startYouTubeConnect,
+  syncPlaylistToYouTube,
 } from "@/lib/music/connections.functions";
 import { useSession } from "@/hooks/use-session";
 
@@ -75,5 +76,23 @@ export function useDisconnectAccount() {
     },
     onError: (error: unknown) =>
       toast.error(error instanceof Error ? error.message : "Could not disconnect."),
+  });
+}
+
+/** Pushes a Sonance playlist up to the listener's YouTube account. */
+export function useSyncPlaylistToYouTube() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (playlistId: string) => syncPlaylistToYouTube({ data: { playlistId } }),
+    onSuccess: (result) => {
+      toast.success(
+        result.added
+          ? `Added ${result.added} track${result.added === 1 ? "" : "s"} to your YouTube playlist.`
+          : "Your YouTube playlist is already up to date.",
+      );
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+    },
+    onError: (error: unknown) =>
+      toast.error(error instanceof Error ? error.message : "Could not sync to YouTube."),
   });
 }
