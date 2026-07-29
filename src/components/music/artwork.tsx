@@ -1,6 +1,7 @@
 import { Play, Pause } from "lucide-react";
 import { hueFor } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { MusicSource } from "@/lib/music/types";
 
 interface ArtworkProps {
   seed: string;
@@ -66,15 +67,20 @@ export function Equalizer({ className }: { className?: string }) {
   );
 }
 
-export function SourceTag({ source }: { source: "spotify" | "youtube" }) {
+export function SourceTag({ source }: { source: MusicSource }) {
+  const label = source === "spotify" ? "Spotify" : source === "youtube" ? "YouTube" : "Archive";
   return (
     <span
       className={cn(
         "rounded-sm px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest",
-        source === "spotify" ? "bg-spotify/15 text-spotify" : "bg-youtube/15 text-youtube",
+        source === "spotify"
+          ? "bg-spotify/15 text-spotify"
+          : source === "youtube"
+            ? "bg-youtube/15 text-youtube"
+            : "bg-primary/15 text-primary",
       )}
     >
-      {source === "spotify" ? "Spotify" : "YouTube"}
+      {label}
     </span>
   );
 }

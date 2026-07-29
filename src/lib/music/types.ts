@@ -1,4 +1,4 @@
-export type MusicSource = "spotify" | "youtube";
+export type MusicSource = "spotify" | "youtube" | "archive";
 
 export interface Track {
   id: string;
@@ -8,6 +8,8 @@ export interface Track {
   album?: string;
   artworkUrl?: string | null;
   durationSec: number;
+  /** Direct audio stream (public-domain archive recordings). Played by the built-in engine. */
+  audioUrl?: string | null;
   /** YouTube video id, when the track is playable through the IFrame Player API. */
   youtubeVideoId?: string | null;
   /** Canonical link back to the source platform (required by both platforms' terms). */

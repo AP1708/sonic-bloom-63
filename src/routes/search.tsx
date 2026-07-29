@@ -31,6 +31,7 @@ export const Route = createFileRoute("/search")({
 
 const FILTERS: { value: MusicSource | "all"; label: string }[] = [
   { value: "all", label: "All sources" },
+  { value: "archive", label: "Archive" },
   { value: "spotify", label: "Spotify" },
   { value: "youtube", label: "YouTube" },
 ];
