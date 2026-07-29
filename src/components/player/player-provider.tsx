@@ -132,6 +132,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ? null
     : (directAudioUrl ?? (currentVideoId ? null : (state.current?.previewUrl ?? null)));
 
+  const videoIdRef = useRef<string | null>(null);
+  videoIdRef.current = currentVideoId;
+
+
+
   // Resolve a YouTube match for metadata-only tracks (Spotify without Premium/preview).
   useEffect(() => {
     const track = state.current;
