@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Play, Trash2, Users } from "lucide-react";
+import { Download, Play, Trash2, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Artwork } from "@/components/music/artwork";
 import { EmptyState, TrackListHeader, TrackRow } from "@/components/music/track-row";
@@ -13,6 +13,13 @@ import {
 } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 import { formatTotalTime } from "@/lib/format";
+import { downloadPlaylist } from "@/lib/music/playlist-transfer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/_authenticated/playlist/$playlistId")({
   head: () => ({
@@ -62,14 +69,41 @@ function PlaylistPage() {
               {playlist?.is_collaborative && <Users className="size-3.5" />}
               {tracks?.length ?? 0} tracks · {formatTotalTime(total)}
             </p>
-            <button
-              type="button"
-              disabled={!tracks?.length}
-              onClick={() => tracks && player.playCollection(tracks)}
-              className="mt-2 flex w-fit items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
-            >
-              <Play className="size-4" /> Play
-            </button>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={!tracks?.length}
+                onClick={() => tracks && player.playCollection(tracks)}
+                className="flex w-fit items-center gap-2 rounded-full bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-40"
+              >
+                <Play className="size-4" /> Play
+              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={!tracks?.length}
+                    className="flex w-fit items-center gap-2 rounded-full border border-border px-5 py-2 text-sm font-medium disabled:opacity-40"
+                  >
+                    <Download className="size-4" /> Export
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      downloadPlaylist(playlist?.title ?? "playlist", tracks ?? [], "json", playlist?.description)
+                    }
+                  >
+                    Export as JSON
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => downloadPlaylist(playlist?.title ?? "playlist", tracks ?? [], "csv")}
+                  >
+                    Export as CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </header>
 
