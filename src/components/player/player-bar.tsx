@@ -1,18 +1,21 @@
 import {
   Heart,
   ListMusic,
+  Loader2,
   Maximize2,
   Mic2,
   Pause,
   Play,
   Repeat,
   Repeat1,
+  RotateCw,
   Shuffle,
   SkipBack,
   SkipForward,
   Volume2,
   VolumeX,
 } from "lucide-react";
+
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
 import { formatDuration } from "@/lib/format";
@@ -46,10 +49,34 @@ export function PlayerBar({
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{track.title}</p>
               <div className="mt-0.5 flex items-center gap-2">
-                <p className="truncate text-xs text-muted-foreground">{track.artist}</p>
-                <SourceTag source={track.source} />
+                {player.statusLabel ? (
+                  <>
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      {player.status !== "unavailable" && (
+                        <Loader2 className="size-3 shrink-0 animate-spin" />
+                      )}
+                      <span className="truncate">{player.statusLabel}</span>
+                    </span>
+                    {player.status === "unavailable" && (
+                      <button
+                        type="button"
+                        onClick={player.retrySource}
+                        className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        <RotateCw className="size-3" />
+                        Retry
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="truncate text-xs text-muted-foreground">{track.artist}</p>
+                    <SourceTag source={track.source} />
+                  </>
+                )}
               </div>
             </div>
+
             {onToggleLike && (
               <button
                 type="button"
@@ -95,7 +122,14 @@ export function PlayerBar({
             aria-label={player.isPlaying ? "Pause" : "Play"}
             className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
           >
-            {player.isPlaying ? <Pause className="size-5" /> : <Play className="ml-0.5 size-5" />}
+            {player.status === "buffering" || player.status === "resolving" ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : player.isPlaying ? (
+              <Pause className="size-5" />
+            ) : (
+              <Play className="ml-0.5 size-5" />
+            )}
+
           </button>
           <button
             type="button"
