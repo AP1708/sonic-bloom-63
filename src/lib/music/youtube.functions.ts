@@ -107,7 +107,11 @@ export const searchYouTube = createServerFn({ method: "GET" })
     };
 
     const items = (searchJson.items ?? []).filter((item) => item.id?.videoId);
-    if (!items.length) return [];
+    if (!items.length) {
+      writeCache(key, []);
+      return [];
+    }
+
 
     // Second call: durations (not returned by search).
     const detailsUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
