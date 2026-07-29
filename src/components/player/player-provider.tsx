@@ -68,10 +68,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const loggedRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ytHostRef = useRef<HTMLDivElement | null>(null);
+  const ytPlayerRef = useRef<YTPlayer | null>(null);
+  const [ytReady, setYtReady] = useState(false);
 
   const currentAudioUrl = state.current
     ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
+  const currentVideoId = !currentAudioUrl ? (state.current?.youtubeVideoId ?? null) : null;
+
 
   /** Advance the queue when a track finishes (shared by the audio element and the clock). */
   const handleEnded = useCallback(() => {
