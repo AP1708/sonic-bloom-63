@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { audioUrlFor } from "@/lib/music/catalog";
 import { spotifyPlayback } from "@/lib/music/spotify-playback";
 import { readSession as readSpotifySession } from "@/lib/music/spotify-auth";
+import { resolveYouTubeVideoId } from "@/lib/music/resolve-playback";
+
 import { recordPlay } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 
@@ -108,17 +110,53 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const spotifyActiveRef = useRef(false);
   const [spotifyStreaming, setSpotifyStreaming] = useState(false);
+  /** YouTube video resolved on demand for tracks that have no playable stream. */
+  const [resolvedVideoId, setResolvedVideoId] = useState<{ trackId: string; videoId: string | null } | null>(
+    null,
+  );
 
   const spotifyUri = state.current?.spotifyUri ?? null;
   const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
 
-  const currentAudioUrl = state.current
-    ? useSpotifySdk
-      ? null
-      : (state.current.audioUrl ?? state.current.previewUrl ?? audioUrlFor(state.current.id))
+  const directAudioUrl = state.current
+    ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
-  const currentVideoId =
-    !currentAudioUrl && !useSpotifySdk ? (state.current?.youtubeVideoId ?? null) : null;
+
+  const ownVideoId = state.current?.youtubeVideoId ?? null;
+  const fallbackVideoId =
+    state.current && resolvedVideoId?.trackId === state.current.id ? resolvedVideoId.videoId : null;
+
+  // Priority: Spotify SDK → direct stream → YouTube video → 30s preview clip.
+  const currentVideoId = useSpotifySdk || directAudioUrl ? null : (ownVideoId ?? fallbackVideoId);
+  const currentAudioUrl = useSpotifySdk
+    ? null
+    : (directAudioUrl ?? (currentVideoId ? null : (state.current?.previewUrl ?? null)));
+
+  const videoIdRef = useRef<string | null>(null);
+  videoIdRef.current = currentVideoId;
+
+
+
+  // Resolve a YouTube match for metadata-only tracks (Spotify without Premium/preview).
+  useEffect(() => {
+    const track = state.current;
+    if (!track || useSpotifySdk || directAudioUrl || ownVideoId) return;
+    if (resolvedVideoId?.trackId === track.id) return;
+    let cancelled = false;
+    void resolveYouTubeVideoId(track).then((videoId) => {
+      if (cancelled) return;
+      setResolvedVideoId({ trackId: track.id, videoId });
+      if (!videoId && !track.previewUrl) {
+        toast("No playable audio found", {
+          description: `Couldn't find a stream for “${track.title}”.`,
+        });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.current, useSpotifySdk, directAudioUrl, ownVideoId, resolvedVideoId]);
+
 
 
   /** Advance the queue when a track finishes (shared by the audio element and the clock). */
@@ -280,12 +318,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (!readSpotifySession()) {
+      // No linked account: the YouTube/preview fallback below takes over silently.
       setSpotifyStreaming(false);
-      if (!state.current?.previewUrl && !state.current?.audioUrl) {
-        toast("Connect Spotify to play this track", {
-          description: "Full playback needs a linked Spotify Premium account.",
-        });
-      }
       return;
     }
     let cancelled = false;
@@ -293,9 +327,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       spotifyActiveRef.current = ok;
       setSpotifyStreaming(ok);
-      if (!ok && !state.current?.previewUrl) {
-        toast("Spotify playback unavailable", {
-          description: "A Spotify Premium account is required for in-app playback.",
+      if (!ok) {
+        toast("Playing an alternate source", {
+          description: "Spotify in-app streaming needs Premium — using a matching stream instead.",
+
         });
       }
     });
@@ -394,7 +429,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setState((prev) => {
           const clamped = Math.min(Math.max(0, seconds), prev.current?.durationSec ?? 0);
           if (audioRef.current && audioRef.current.src) audioRef.current.currentTime = clamped;
-          if (prev.current?.youtubeVideoId) ytPlayerRef.current?.seekTo(clamped, true);
+          if (videoIdRef.current) ytPlayerRef.current?.seekTo(clamped, true);
           if (spotifyActiveRef.current) void spotifyPlayback.seek(clamped);
 
           return { ...prev, progressSec: clamped };
