@@ -24,6 +24,7 @@ import {
   useLastPlaybackPosition,
 } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
+import { useMediaSession } from "@/hooks/use-media-session";
 
 export type SidePanel = "queue" | "lyrics" | null;
 export type RepeatMode = "off" | "all" | "one";
@@ -641,6 +642,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // YouTube-sourced audio is paused by mobile browsers when the tab goes to the
+  // background — direct streams and Spotify keep playing. Explain it once.
+  const bgHintRef = useRef({ hidWithVideo: false, shown: false });
+  useEffect(() => {
+    const onVisibility = () => {
+      const hint = bgHintRef.current;
+      if (document.visibilityState === "hidden") {
+        hint.hidWithVideo = Boolean(videoIdRef.current) && isPlayingRef.current;
+        return;
+      }
+      if (hint.hidWithVideo && !hint.shown && !isPlayingRef.current && videoIdRef.current) {
+        hint.shown = true;
+        toast("Paused in the background", {
+          description:
+            "This track only has a YouTube source, and mobile browsers pause YouTube when the app isn't in front. Tracks with a direct or Spotify source keep playing with the screen off.",
+        });
+      }
+      hint.hidWithVideo = false;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+
   const actions = useMemo<PlayerActions>(
     () => ({
       playTrack: (track, contextQueue) => {
@@ -724,6 +749,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // OS-level controls: lock screen, notification shade, Bluetooth remotes.
+  const isPlayingRef = useRef(state.isPlaying);
+  isPlayingRef.current = state.isPlaying;
+  const mediaPlay = useCallback(() => {
+    if (!isPlayingRef.current) actions.toggle();
+  }, [actions]);
+  const mediaPause = useCallback(() => {
+    if (isPlayingRef.current) actions.toggle();
+  }, [actions]);
+
+  useMediaSession({
+    track: state.current,
+    isPlaying: state.isPlaying,
+    progressSec: state.progressSec,
+    durationSec: state.current?.durationSec ?? 0,
+    onPlay: mediaPlay,
+    onPause: mediaPause,
+    onNext: actions.next,
+    onPrevious: actions.previous,
+    onSeek: actions.seek,
+  });
+
   const value = useMemo(
     () => ({ ...state, ...actions, status, statusLabel, activeSource }),
     [state, actions, status, statusLabel, activeSource],
@@ -735,6 +782,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       <audio
         ref={audioRef}
         preload="metadata"
+        playsInline
         crossOrigin="anonymous"
         onTimeUpdate={(event) => {
           const time = event.currentTarget.currentTime;
