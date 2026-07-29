@@ -1,4 +1,5 @@
 import { Heart, MoreHorizontal, Play, Plus } from "lucide-react";
+import { TrackMenu } from "./track-menu";
 import { Artwork, Equalizer, SourceTag } from "./artwork";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,8 @@ interface TrackRowProps {
   onPlay: () => void;
   onLike?: () => void;
   onAdd?: () => void;
+  /** Set to false for lists that render their own contextual actions. */
+  showMenu?: boolean;
 }
 
 export function TrackRow({
@@ -26,6 +29,7 @@ export function TrackRow({
   onPlay,
   onLike,
   onAdd,
+  showMenu = true,
 }: TrackRowProps) {
   return (
     <div
@@ -91,6 +95,7 @@ export function TrackRow({
             <Plus className="size-4" />
           </button>
         )}
+        {showMenu && <TrackMenu track={track} liked={liked} />}
         <span className="w-12 text-right font-mono text-xs text-muted-foreground">
           {formatDuration(track.durationSec)}
         </span>
