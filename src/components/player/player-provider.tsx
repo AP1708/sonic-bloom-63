@@ -82,6 +82,7 @@ interface PlayerActions {
   setPanel: (panel: SidePanel) => void;
   setFullscreen: (value: boolean) => void;
   enqueue: (track: Track) => void;
+  playNext: (track: Track) => void;
   removeFromQueue: (index: number) => void;
   clearQueue: () => void;
   retrySource: () => void;
@@ -606,6 +607,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       setPanel: (panel) => setState((prev) => ({ ...prev, panel: prev.panel === panel ? null : panel })),
       setFullscreen: (value) => setState((prev) => ({ ...prev, fullscreen: value })),
       enqueue: (track) => setState((prev) => ({ ...prev, queue: [...prev.queue, track] })),
+      playNext: (track) =>
+        setState((prev) => {
+          if (!prev.queue.length || !prev.current) {
+            return { ...prev, queue: [track], index: 0, current: track, progressSec: 0 };
+          }
+          const queue = [...prev.queue];
+          queue.splice(prev.index + 1, 0, track);
+          return { ...prev, queue };
+        }),
       removeFromQueue: (index) =>
         setState((prev) => {
           const queue = prev.queue.filter((_, i) => i !== index);
