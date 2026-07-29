@@ -3,7 +3,6 @@ import {
   ListMusic,
   Loader2,
   Maximize2,
-  PictureInPicture2,
   Mic2,
   Pause,
   Play,
@@ -19,7 +18,6 @@ import {
 
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
-import { usePictureInPicture } from "./pip-player";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +29,6 @@ export function PlayerBar({
   onToggleLike?: () => void;
 }) {
   const player = usePlayer();
-  const pip = usePictureInPicture();
   const track = player.current;
   const duration = track?.durationSec ?? 0;
   const pct = duration ? (player.progressSec / duration) * 100 : 0;
@@ -219,15 +216,6 @@ export function PlayerBar({
             className="h-1 w-24 cursor-pointer appearance-none rounded-full bg-muted accent-primary"
           />
         </div>
-        {pip.supported && (
-          <button
-            type="button"
-            onClick={pip.toggle}
-            aria-label={pip.isOpen ? "Close pop-out player" : "Pop out player"}
-            className={cn(
-              "text-muted-foreground hover:text-foreground",
-              pip.isOpen && "text-primary",
-            )}
           >
             <PictureInPicture2 className="size-4" />
           </button>
