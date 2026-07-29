@@ -160,11 +160,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   /** YouTube videos that refused to play (blocked / removed / not embeddable). */
   const [deadVideos, setDeadVideos] = useState<string[]>([]);
 
+  // Downloaded copies win over the network so playback works with no connection.
+  const offlineAudioUrl = useOfflineAudioUrl(state.current?.id ?? null);
+
   const rawAudioUrl = state.current
-    ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
+    ? (offlineAudioUrl ?? state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
   const directAudioUrl =
     state.current && deadAudio.includes(state.current.id) ? null : rawAudioUrl;
+
 
   const ownSpotifyUri = state.current?.spotifyUri ?? null;
   const fallbackSpotifyUri =
