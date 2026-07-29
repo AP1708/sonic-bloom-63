@@ -1,8 +1,11 @@
-import { X, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { ExternalLink, FileQuestion, RefreshCw, X, Trash2 } from "lucide-react";
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
+import { useLyrics } from "@/hooks/use-lyrics";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { Track } from "@/lib/music/types";
 
 export function SidePanel() {
   const player = usePlayer();
