@@ -153,6 +153,8 @@ export type Database = {
           playlist_id: string
           position: number
           source: string
+          source_external_id: string | null
+          source_provider: string | null
           title: string
           track_id: string
         }
@@ -166,6 +168,8 @@ export type Database = {
           playlist_id: string
           position?: number
           source: string
+          source_external_id?: string | null
+          source_provider?: string | null
           title: string
           track_id: string
         }
@@ -179,6 +183,8 @@ export type Database = {
           playlist_id?: string
           position?: number
           source?: string
+          source_external_id?: string | null
+          source_provider?: string | null
           title?: string
           track_id?: string
         }
@@ -205,6 +211,8 @@ export type Database = {
           moderated_by: string | null
           moderation_note: string | null
           owner_id: string
+          source_external_id: string | null
+          source_provider: string | null
           title: string
           updated_at: string
         }
@@ -220,6 +228,8 @@ export type Database = {
           moderated_by?: string | null
           moderation_note?: string | null
           owner_id: string
+          source_external_id?: string | null
+          source_provider?: string | null
           title: string
           updated_at?: string
         }
@@ -235,6 +245,8 @@ export type Database = {
           moderated_by?: string | null
           moderation_note?: string | null
           owner_id?: string
+          source_external_id?: string | null
+          source_provider?: string | null
           title?: string
           updated_at?: string
         }
@@ -305,6 +317,45 @@ export type Database = {
           source?: string
           title?: string
           track_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_music_connections: {
+        Row: {
+          account_label: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          last_synced_at: string | null
+          provider: string
+          scopes: string | null
+          token_ciphertext: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_label?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          provider: string
+          scopes?: string | null
+          token_ciphertext: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_label?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          last_synced_at?: string | null
+          provider?: string
+          scopes?: string | null
+          token_ciphertext?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
