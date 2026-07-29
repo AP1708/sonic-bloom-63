@@ -19,6 +19,54 @@ const spotifyCache = new Map<string, string | null>();
 const spotifyInFlight = new Map<string, Promise<string | null>>();
 
 
+const NOISE = [
+  "official",
+  "video",
+  "audio",
+  "lyrics",
+  "lyric",
+  "hd",
+  "hq",
+  "4k",
+  "remaster",
+  "remastered",
+  "full",
+  "song",
+  "mp3",
+  "with",
+  "feat",
+  "ft",
+];
+
+/** Terms that usually indicate a different recording than the requested track. */
+const BAD_TERMS = [
+  "cover",
+  "karaoke",
+  "instrumental",
+  "reaction",
+  "review",
+  "remix",
+  "mashup",
+  "live",
+  "concert",
+  "slowed",
+  "reverb",
+  "speed up",
+  "sped up",
+  "8d",
+  "nightcore",
+  "tutorial",
+  "guitar lesson",
+  "ringtone",
+  "jukebox",
+  "mix",
+  "medley",
+  "full album",
+  "trailer",
+  "teaser",
+  "shorts",
+];
+
 function normalise(value: string): string {
   return value
     .toLowerCase()
@@ -28,15 +76,60 @@ function normalise(value: string): string {
     .trim();
 }
 
-/** Loose check that the YouTube hit is actually the same song. */
+function tokens(value: string): string[] {
+  return normalise(value)
+    .split(" ")
+    .filter((word) => word.length > 2 && !NOISE.includes(word));
+}
+
+function coverage(want: string[], haystack: string): number {
+  if (!want.length) return 0;
+  const hits = want.filter((word) => haystack.includes(word)).length;
+  return hits / want.length;
+}
+
+/**
+ * Ranks a YouTube candidate against the wanted track.
+ * Returns a score; negative means "definitely not this song".
+ */
+function scoreCandidate(track: Track, candidate: Track): number {
+  const raw = `${candidate.title} ${candidate.artist}`.toLowerCase();
+  const hay = `${normalise(candidate.title)} ${normalise(candidate.artist)}`;
+  const titleWords = tokens(track.title);
+  const artistWords = tokens(track.artist);
+
+  const titleScore = coverage(titleWords, hay);
+  // A weak title match is disqualifying — this is what causes wrong-video playback.
+  if (titleScore < 0.6) return -1;
+
+  let score = titleScore * 100;
+  score += coverage(artistWords, hay) * 60;
+
+  // Official artist channels ("<Artist> - Topic", label uploads) are the safest bet.
+  if (/-\s*topic$/i.test(candidate.artist)) score += 25;
+  if (/official/i.test(raw)) score += 8;
+
+  // Penalise re-interpretations unless the wanted track advertises the same thing.
+  const wantRaw = `${track.title} ${track.artist}`.toLowerCase();
+  for (const term of BAD_TERMS) {
+    if (raw.includes(term) && !wantRaw.includes(term)) score -= 40;
+  }
+
+  // Duration proximity is the strongest signal that it is the same recording.
+  if (track.durationSec > 30 && candidate.durationSec > 0) {
+    const delta = Math.abs(track.durationSec - candidate.durationSec);
+    if (delta <= 5) score += 45;
+    else if (delta <= 15) score += 25;
+    else if (delta <= 30) score += 5;
+    else if (delta > 90) score -= 60;
+  }
+
+  return score;
+}
+
+/** Loose check that the hit is plausibly the same song (used for Spotify matches). */
 function matches(track: Track, candidate: Track): boolean {
-  const wantTitle = normalise(track.title);
-  const gotText = `${normalise(candidate.title)} ${normalise(candidate.artist)}`;
-  if (!wantTitle) return false;
-  const words = wantTitle.split(" ").filter((w) => w.length > 2);
-  if (!words.length) return gotText.includes(wantTitle);
-  const hits = words.filter((word) => gotText.includes(word)).length;
-  return hits / words.length >= 0.6;
+  return scoreCandidate(track, candidate) > 0;
 }
 
 export async function resolveYouTubeVideoId(track: Track): Promise<string | null> {
@@ -48,11 +141,16 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
 
   const promise = (async () => {
     try {
-      const results = await searchYouTube({
-        data: { query: `${track.artist} ${track.title}`.trim(), limit: 5 },
-      });
-      const hit = results.find((item) => matches(track, item)) ?? results[0] ?? null;
-      const videoId = hit?.youtubeVideoId ?? null;
+      const query = `${track.artist} ${track.title} official audio`.replace(/\s+/g, " ").trim();
+      const results = await searchYouTube({ data: { query, limit: 10 } });
+      let best: { track: Track; score: number } | null = null;
+      for (const item of results) {
+        const score = scoreCandidate(track, item);
+        if (score <= 0) continue;
+        if (!best || score > best.score) best = { track: item, score };
+      }
+      // No confident match: better to stay silent than play the wrong song.
+      const videoId = best?.track.youtubeVideoId ?? null;
       cache.set(key, videoId);
       return videoId;
     } catch {
@@ -66,6 +164,7 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
   inFlight.set(key, promise);
   return promise;
 }
+
 
 /** Finds a Spotify track URI for a track that came from another source. */
 export async function resolveSpotifyUri(track: Track): Promise<string | null> {
