@@ -46,12 +46,12 @@ export function FullscreenPlayer() {
       </header>
 
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 px-6 pb-6">
+        <div className="flex shrink-0 flex-col items-center justify-center gap-5 px-6 pb-6 lg:min-h-0 lg:flex-1 lg:gap-6">
           <Artwork
             seed={track.id}
             src={track.artworkUrl}
             alt=""
-            className="aspect-square w-full max-w-[min(20rem,45vh)] shadow-2xl"
+            className="aspect-square w-full max-w-[min(16rem,26vh)] shadow-2xl lg:max-w-[min(22rem,45vh)]"
             rounded="rounded-2xl"
           />
           <div className="flex flex-col items-center gap-2 text-center">
