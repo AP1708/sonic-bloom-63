@@ -169,10 +169,9 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <PlayerProvider>
-          <PictureInPictureProvider>
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-          </PictureInPictureProvider>
+          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+          <Outlet />
+
         </PlayerProvider>
       </ThemeProvider>
     </QueryClientProvider>
