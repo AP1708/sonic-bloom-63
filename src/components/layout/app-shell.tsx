@@ -133,3 +133,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+function MobileThemeToggle() {
+  const { resolved, toggle } = useTheme();
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={resolved === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+      className="grid size-8 place-items-center rounded-full border border-border bg-surface text-muted-foreground transition-colors hover:text-foreground sm:hidden"
+    >
+      {resolved === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
+  );
+}
