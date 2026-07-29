@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Sun, X } from "lucide-re
 import { Sidebar } from "./sidebar";
 import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
-import { SpotifyConnectButton } from "@/components/music/spotify-connect";
+import { ConnectionsMenu } from "@/components/music/connections-menu";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { useTheme } from "@/components/theme/theme";
@@ -88,7 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-3">
               <ThemeToggle className="hidden sm:flex" />
               <MobileThemeToggle />
-              <SpotifyConnectButton />
+              <ConnectionsMenu />
               {user ? (
                 <div className="flex items-center gap-3">
                   <span className="grid size-8 place-items-center rounded-full bg-primary font-mono text-xs text-primary-foreground">
