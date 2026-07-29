@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  Check,
+  ArrowDownToLine,
   Download,
   Heart,
   ListEnd,
@@ -191,7 +191,7 @@ export function TrackMenu({
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem disabled={saving} onSelect={() => void saveOffline()}>
-            <Check className="size-4 opacity-0" /> Save offline
+            <ArrowDownToLine className="size-4" /> Save offline
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onSelect={handleDownload}>
