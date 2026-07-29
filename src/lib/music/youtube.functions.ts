@@ -126,20 +126,24 @@ export const searchYouTube = createServerFn({ method: "GET" })
       }
     }
 
-    return items.map((item) => {
-      const videoId = item.id.videoId;
-      const { title, artist } = splitTitle(item.snippet.title, item.snippet.channelTitle);
-      const thumbs = item.snippet.thumbnails ?? {};
-      return {
-        id: `yt-${videoId}`,
-        source: "youtube" as const,
-        title,
-        artist: artist || "YouTube",
-        artworkUrl: (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? null,
-        durationSec: durations.get(videoId) ?? 0,
-        audioUrl: null,
-        youtubeVideoId: videoId,
-        externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
-      };
+      const tracks = items.map((item) => {
+        const videoId = item.id.videoId;
+        const { title, artist } = splitTitle(item.snippet.title, item.snippet.channelTitle);
+        const thumbs = item.snippet.thumbnails ?? {};
+        return {
+          id: `yt-${videoId}`,
+          source: "youtube" as const,
+          title,
+          artist: artist || "YouTube",
+          artworkUrl: (thumbs.high ?? thumbs.medium ?? thumbs.default)?.url ?? null,
+          durationSec: durations.get(videoId) ?? 0,
+          audioUrl: null,
+          youtubeVideoId: videoId,
+          externalUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        };
+      });
+      writeCache(key, tracks);
+      return tracks;
     });
   });
+
