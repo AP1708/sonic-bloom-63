@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { audioUrlFor } from "@/lib/music/catalog";
 import { spotifyPlayback } from "@/lib/music/spotify-playback";
 import { readSession as readSpotifySession } from "@/lib/music/spotify-auth";
-import { resolveYouTubeVideoId } from "@/lib/music/resolve-playback";
+import { resolveYouTubeVideoId, resolveSpotifyUri } from "@/lib/music/resolve-playback";
 
 import { recordPlay } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
@@ -149,6 +149,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!track || ownSpotifyUri) return;
     if (!readSpotifySession()) return;
     if (resolvedSpotify?.trackId === track.id) return;
+
     let cancelled = false;
     void resolveSpotifyUri(track).then((uri) => {
       if (cancelled) return;
