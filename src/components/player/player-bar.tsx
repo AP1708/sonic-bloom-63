@@ -122,7 +122,14 @@ export function PlayerBar({
             aria-label={player.isPlaying ? "Pause" : "Play"}
             className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105 active:scale-95 disabled:opacity-40"
           >
-            {player.isPlaying ? <Pause className="size-5" /> : <Play className="ml-0.5 size-5" />}
+            {player.status === "buffering" || player.status === "resolving" ? (
+              <Loader2 className="size-5 animate-spin" />
+            ) : player.isPlaying ? (
+              <Pause className="size-5" />
+            ) : (
+              <Play className="ml-0.5 size-5" />
+            )}
+
           </button>
           <button
             type="button"
