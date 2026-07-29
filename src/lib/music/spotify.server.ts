@@ -85,7 +85,8 @@ export async function searchSpotifyTracks(query: string, limit: number): Promise
   const url = new URL("https://api.spotify.com/v1/search");
   url.searchParams.set("q", query);
   url.searchParams.set("type", "track");
-  url.searchParams.set("limit", String(limit));
+  const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(Math.trunc(limit), 1), 50) : 20;
+  url.searchParams.set("limit", String(safeLimit));
 
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {
