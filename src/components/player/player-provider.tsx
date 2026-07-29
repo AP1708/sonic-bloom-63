@@ -362,11 +362,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }}
         onEnded={handleEnded}
         onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
-        onPause={() => setState((prev) => ({ ...prev, isPlaying: false }))}
-        onError={() => setState((prev) => ({ ...prev, isPlaying: false }))}
+        onPause={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
+        onError={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
         className="hidden"
       />
+      {/* Official YouTube IFrame player — kept mounted and visible while a video track plays. */}
+      <div
+        className={
+          currentVideoId
+            ? "fixed bottom-28 right-4 z-40 w-44 overflow-hidden rounded-lg border border-border bg-black shadow-lg lg:w-56"
+            : "pointer-events-none fixed h-0 w-0 overflow-hidden opacity-0"
+        }
+      >
+        <div className={currentVideoId ? "aspect-video w-full" : "h-0 w-0"}>
+          <div ref={ytHostRef} className="size-full" />
+        </div>
+      </div>
       {children}
+
     </PlayerContext.Provider>
   );
 }
