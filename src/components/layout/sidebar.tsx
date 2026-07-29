@@ -7,6 +7,7 @@ import {
   ListPlus,
   Search,
   Music4,
+  Mic2,
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,10 +18,11 @@ import { useIsAdmin } from "@/hooks/use-admin";
 const NAV = [
   { to: "/", label: "Home", icon: Home, exact: true },
   { to: "/search", label: "Search", icon: Search },
+  { to: "/artists", label: "Artists", icon: Mic2 },
   { to: "/library", label: "Your library", icon: Library },
   { to: "/liked", label: "Liked songs", icon: Heart },
 ] as {
-  to: "/" | "/search" | "/library" | "/liked";
+  to: "/" | "/search" | "/artists" | "/library" | "/liked";
   label: string;
   icon: typeof Home;
   exact?: boolean;
