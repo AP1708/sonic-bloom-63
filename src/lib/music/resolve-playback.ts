@@ -1,17 +1,23 @@
 import { searchYouTube } from "./youtube.functions";
+import { searchSpotify } from "./spotify.functions";
 import type { Track } from "./types";
 
 /**
- * Playback resolution for tracks that carry metadata but no stream.
+ * Cross-source playback resolution.
  *
- * Spotify tracks are only streamable in-app with a linked Premium session, and
- * a lot of them ship without a 30s preview. To keep every track audible we look
- * up a matching video on YouTube and play it through the official IFrame
- * player. Results are memoised per track for the session.
+ * Every track carries metadata from one platform but should be playable on
+ * both: we look up a matching YouTube video (official IFrame player) and a
+ * matching Spotify track URI (Web Playback SDK, Premium sessions) so the
+ * player can use whichever source is available. Results are memoised per
+ * track for the session.
  */
 
 const cache = new Map<string, string | null>();
 const inFlight = new Map<string, Promise<string | null>>();
+
+const spotifyCache = new Map<string, string | null>();
+const spotifyInFlight = new Map<string, Promise<string | null>>();
+
 
 function normalise(value: string): string {
   return value
