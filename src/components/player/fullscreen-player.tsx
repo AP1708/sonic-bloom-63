@@ -47,7 +47,24 @@ export function FullscreenPlayer() {
             <p className="text-muted-foreground">{track.artist}</p>
             <SourceTag source={track.source} />
           </div>
+          {player.statusLabel && (
+            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+              {player.status !== "unavailable" && <Loader2 className="size-3.5 animate-spin" />}
+              <span>{player.statusLabel}</span>
+              {player.status === "unavailable" && (
+                <button
+                  type="button"
+                  onClick={player.retrySource}
+                  className="flex items-center gap-1 font-medium text-primary hover:underline"
+                >
+                  <RotateCw className="size-3.5" />
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
         </div>
+
 
         <div className="flex w-full max-w-lg items-center gap-3">
           <span className="w-10 text-right font-mono text-[10px] text-muted-foreground">
