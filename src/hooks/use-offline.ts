@@ -133,7 +133,10 @@ export function useOfflineIds() {
   useEffect(() => {
     const load = () => void listOffline().then((entries) => setIds(new Set(entries.map((e) => e.id))));
     load();
-    return subscribeOffline(load);
+    const unsubscribe = subscribeOffline(load);
+    return () => {
+      unsubscribe();
+    };
   }, []);
   return ids;
 }
