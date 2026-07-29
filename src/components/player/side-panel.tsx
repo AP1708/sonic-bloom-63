@@ -1,8 +1,11 @@
-import { X, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { ExternalLink, FileQuestion, RefreshCw, X, Trash2 } from "lucide-react";
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
+import { useLyrics } from "@/hooks/use-lyrics";
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import type { Track } from "@/lib/music/types";
 
 export function SidePanel() {
   const player = usePlayer();
@@ -83,24 +86,150 @@ function QueueList() {
 function LyricsPane() {
   const player = usePlayer();
   const track = player.current;
+  const lyrics = useLyrics(track ?? null);
+  const activeRef = useRef<HTMLParagraphElement | null>(null);
+
+  const lines = lyrics.data?.lines ?? [];
+  const synced = lyrics.data?.status === "synced";
+
+  const activeIndex = useMemo(() => {
+    if (!synced) return -1;
+    let index = -1;
+    for (let i = 0; i < lines.length; i += 1) {
+      if ((lines[i].timeSec ?? 0) <= player.progressSec + 0.35) index = i;
+      else break;
+    }
+    return index;
+  }, [synced, lines, player.progressSec]);
+
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [activeIndex]);
+
+  if (!track) {
+    return (
+      <div className="flex-1 px-5 py-6">
+        <p className="text-sm text-muted-foreground">Play a track to see lyrics here.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-5 py-6">
-      {track ? (
+      <p className="text-sm font-medium">{track.title}</p>
+      <div className="mt-1 flex items-center gap-2">
+        <p className="text-xs text-muted-foreground">{track.artist}</p>
+        <SourceTag source={track.source} />
+      </div>
+
+      {lyrics.isLoading ? (
+        <div className="mt-8 flex flex-col gap-3" aria-label="Loading lyrics">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <span
+              key={index}
+              className="h-3 animate-pulse rounded bg-surface-raised"
+              style={{ width: `${55 + ((index * 13) % 40)}%` }}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {lyrics.isError ? (
+        <LyricsFallback
+          track={track}
+          heading="Couldn't reach the lyrics service"
+          body="The connection failed — you can retry, or open the source recording."
+          onRetry={() => lyrics.refetch()}
+        />
+      ) : null}
+
+      {lyrics.data?.status === "none" ? (
+        <LyricsFallback
+          track={track}
+          heading="No lyrics found"
+          body="This vintage recording isn't in the lyrics database yet. Many golden-era film songs are still uncatalogued."
+          onRetry={() => lyrics.refetch()}
+        />
+      ) : null}
+
+      {lines.length ? (
         <>
-          <p className="text-sm font-medium">{track.title}</p>
-          <div className="mt-1 flex items-center gap-2">
-            <p className="text-xs text-muted-foreground">{track.artist}</p>
-            <SourceTag source={track.source} />
+          <div className="mt-6 flex flex-col gap-3 pb-10">
+            {lines.map((line, index) => (
+              <p
+                key={`${index}-${line.timeSec ?? "x"}`}
+                ref={index === activeIndex ? activeRef : undefined}
+                className={cn(
+                  "text-sm leading-relaxed transition-colors",
+                  line.text ? "" : "h-2",
+                  !synced
+                    ? "text-muted-foreground"
+                    : index === activeIndex
+                      ? "font-medium text-primary"
+                      : index < activeIndex
+                        ? "text-muted-foreground/60"
+                        : "text-muted-foreground",
+                )}
+              >
+                {line.text}
+              </p>
+            ))}
           </div>
-          <p className="mt-8 text-sm leading-relaxed text-muted-foreground">
-            Time-synced lyrics arrive once a lyrics provider is connected. Track metadata is already
-            wired through the provider abstraction, so enabling a lyrics source is a drop-in change.
+          <p className="label-mono border-t border-border pt-3 text-[10px] text-muted-foreground">
+            {synced ? "Time-synced" : "Plain"} lyrics via {lyrics.data?.provider}
+            {lyrics.data?.matchedTitle ? ` · matched “${lyrics.data.matchedTitle}”` : ""}
           </p>
         </>
-      ) : (
-        <p className="text-sm text-muted-foreground">Play a track to see lyrics here.</p>
-      )}
+      ) : null}
+    </div>
+  );
+}
+
+function LyricsFallback({
+  track,
+  heading,
+  body,
+  onRetry,
+}: {
+  track: Track;
+  heading: string;
+  body: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="mt-8 flex flex-col items-start gap-3 rounded-lg border border-border bg-surface-raised p-4">
+      <div className="flex items-center gap-2 text-sm font-medium">
+        <FileQuestion className="size-4 text-primary" />
+        {heading}
+      </div>
+      <p className="text-xs leading-relaxed text-muted-foreground">{body}</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs hover:border-primary hover:text-primary"
+        >
+          <RefreshCw className="size-3" /> Try again
+        </button>
+        <a
+          href={`https://www.google.com/search?q=${encodeURIComponent(`${track.title} ${track.artist} lyrics`)}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ExternalLink className="size-3" /> Search the web
+        </a>
+        {track.externalUrl ? (
+          <a
+            href={track.externalUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <ExternalLink className="size-3" /> Source
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }
