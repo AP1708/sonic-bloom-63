@@ -1,18 +1,21 @@
 import {
   Heart,
   ListMusic,
+  Loader2,
   Maximize2,
   Mic2,
   Pause,
   Play,
   Repeat,
   Repeat1,
+  RotateCw,
   Shuffle,
   SkipBack,
   SkipForward,
   Volume2,
   VolumeX,
 } from "lucide-react";
+
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
 import { formatDuration } from "@/lib/format";
