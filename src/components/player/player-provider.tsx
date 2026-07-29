@@ -119,9 +119,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     null,
   );
 
-  const directAudioUrl = state.current
+  /** Tracks whose direct stream failed to load — fall through to the next source. */
+  const [deadAudio, setDeadAudio] = useState<string[]>([]);
+  /** YouTube videos that refused to play (blocked / removed / not embeddable). */
+  const [deadVideos, setDeadVideos] = useState<string[]>([]);
+
+  const rawAudioUrl = state.current
     ? (state.current.audioUrl ?? audioUrlFor(state.current.id))
     : null;
+  const directAudioUrl =
+    state.current && deadAudio.includes(state.current.id) ? null : rawAudioUrl;
 
   const ownSpotifyUri = state.current?.spotifyUri ?? null;
   const fallbackSpotifyUri =
@@ -131,9 +138,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const useSpotifySdk = Boolean(spotifyUri) && spotifyStreaming;
 
 
-  const ownVideoId = state.current?.youtubeVideoId ?? null;
-  const fallbackVideoId =
+  const rawOwnVideoId = state.current?.youtubeVideoId ?? null;
+  const ownVideoId = rawOwnVideoId && !deadVideos.includes(rawOwnVideoId) ? rawOwnVideoId : null;
+  const rawFallbackVideoId =
     state.current && resolvedVideoId?.trackId === state.current.id ? resolvedVideoId.videoId : null;
+  const fallbackVideoId =
+    rawFallbackVideoId && !deadVideos.includes(rawFallbackVideoId) ? rawFallbackVideoId : null;
 
   // Priority: Spotify SDK → direct stream → YouTube video → 30s preview clip.
   const currentVideoId = useSpotifySdk || directAudioUrl ? null : (ownVideoId ?? fallbackVideoId);
@@ -143,6 +153,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const videoIdRef = useRef<string | null>(null);
   videoIdRef.current = currentVideoId;
+
 
   // Resolve a Spotify match for tracks from other sources, so a linked Premium
   // session can stream anything the catalog surfaces.
@@ -253,7 +264,14 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
             if (event.data === 1) setState((prev) => ({ ...prev, isPlaying: true }));
             if (event.data === 2) setState((prev) => ({ ...prev, isPlaying: false }));
           },
+          // 2/5/100/101/150: bad id, removed video, or embedding blocked.
+          onError: () => {
+            const dead = videoIdRef.current;
+            if (!dead) return;
+            setDeadVideos((prev) => (prev.includes(dead) ? prev : [...prev, dead]));
+          },
         },
+
       });
     });
     return () => {
@@ -513,7 +531,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         onEnded={handleEnded}
         onPlay={() => setState((prev) => ({ ...prev, isPlaying: true }))}
         onPause={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
-        onError={() => !currentVideoId && setState((prev) => ({ ...prev, isPlaying: false }))}
+        onError={() => {
+          // A dead archive stream shouldn't stop playback: drop the direct URL so
+          // the Spotify / YouTube resolvers take over for this track.
+          const track = state.current;
+          if (track && rawAudioUrl && !currentVideoId) {
+            setDeadAudio((prev) => (prev.includes(track.id) ? prev : [...prev, track.id]));
+          }
+        }}
+
         className="hidden"
       />
       {/* Official YouTube IFrame player — kept mounted and visible while a video track plays. */}
