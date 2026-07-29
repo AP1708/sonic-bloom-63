@@ -25,6 +25,7 @@ import {
 } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 import { useMediaSession } from "@/hooks/use-media-session";
+import { findRelatedTracks } from "@/lib/music/related";
 
 export type SidePanel = "queue" | "lyrics" | null;
 
@@ -130,6 +131,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     autoQueuedIds: [],
   });
 
+  const queueRef = useRef<Track[]>([]);
+  queueRef.current = state.queue;
   const loggedRef = useRef<string | null>(null);
   const userRef = useRef<string | null>(null);
   userRef.current = user?.id ?? null;
@@ -674,6 +677,53 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
+
+  // Restore the saved autoplay-radio preference (client-only; SSR default is on).
+  useEffect(() => {
+    const stored = window.localStorage.getItem(AUTO_QUEUE_KEY);
+    if (stored === "off") setState((prev) => ({ ...prev, autoQueue: false }));
+  }, []);
+
+  // Autoplay radio: top the queue up with related songs before it runs out.
+  const radioSeedRef = useRef<string | null>(null);
+  const radioBusyRef = useRef(false);
+  const remaining = state.queue.length - state.index - 1;
+  useEffect(() => {
+    if (!state.autoQueue || !state.current || remaining >= 3) return;
+    const seed = state.current;
+    if (radioBusyRef.current || radioSeedRef.current === seed.id) return;
+    radioSeedRef.current = seed.id;
+    radioBusyRef.current = true;
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      const exclude = queueRef.current.map((track) => track.id);
+      void findRelatedTracks(seed, exclude, 8)
+        .then((tracks) => {
+          if (cancelled || !tracks.length) return;
+          setState((prev) => {
+            if (!prev.autoQueue) return prev;
+            const known = new Set(prev.queue.map((track) => track.id));
+            const additions = tracks.filter((track) => !known.has(track.id));
+            if (!additions.length) return prev;
+            return {
+              ...prev,
+              queue: [...prev.queue, ...additions],
+              autoQueuedIds: [...prev.autoQueuedIds, ...additions.map((track) => track.id)],
+            };
+          });
+        })
+        .finally(() => {
+          radioBusyRef.current = false;
+        });
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      radioBusyRef.current = false;
+    };
+  }, [state.autoQueue, state.current, remaining]);
 
   const actions = useMemo<PlayerActions>(
     () => ({
