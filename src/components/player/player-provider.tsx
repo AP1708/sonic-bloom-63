@@ -427,7 +427,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setState((prev) => {
           const clamped = Math.min(Math.max(0, seconds), prev.current?.durationSec ?? 0);
           if (audioRef.current && audioRef.current.src) audioRef.current.currentTime = clamped;
-          if (prev.current?.youtubeVideoId) ytPlayerRef.current?.seekTo(clamped, true);
+          if (videoIdRef.current) ytPlayerRef.current?.seekTo(clamped, true);
           if (spotifyActiveRef.current) void spotifyPlayback.seek(clamped);
 
           return { ...prev, progressSec: clamped };
