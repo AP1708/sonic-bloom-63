@@ -1,4 +1,4 @@
-import { ChevronDown, Pause, Play, SkipBack, SkipForward } from "lucide-react";
+import { ChevronDown, Loader2, Pause, Play, RotateCw, SkipBack, SkipForward } from "lucide-react";
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
 import { formatDuration } from "@/lib/format";
