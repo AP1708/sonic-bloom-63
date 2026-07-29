@@ -373,10 +373,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         events: {
           onReady: () => setYtReady(true),
           onStateChange: (event: { data: number }) => {
+            if (event.data === 3) setYtBuffering(true); // BUFFERING
+            else setYtBuffering(false);
             if (event.data === 0) handleEnded(); // ENDED
             if (event.data === 1) setState((prev) => ({ ...prev, isPlaying: true }));
             if (event.data === 2) setState((prev) => ({ ...prev, isPlaying: false }));
           },
+
           // 2/5/100/101/150: bad id, removed video, or embedding blocked.
           onError: () => {
             const dead = videoIdRef.current;
