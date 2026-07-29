@@ -100,7 +100,10 @@ function ConnectionPill({
               <Plug className="mr-2 size-4" /> Reconnect
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={() => onDisconnect()}>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onSelect={() => onDisconnect()}
+            >
               <Link2Off className="mr-2 size-4" /> Disconnect
             </DropdownMenuItem>
           </>
