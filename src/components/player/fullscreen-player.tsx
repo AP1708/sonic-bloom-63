@@ -1,11 +1,22 @@
-import { ChevronDown, Loader2, Pause, Play, RotateCw, SkipBack, SkipForward } from "lucide-react";
+import {
+  ChevronDown,
+  Loader2,
+  Pause,
+  PictureInPicture2,
+  Play,
+  RotateCw,
+  SkipBack,
+  SkipForward,
+} from "lucide-react";
 import { Artwork, SourceTag } from "@/components/music/artwork";
 import { usePlayer } from "./player-provider";
+import { usePictureInPicture } from "./pip-player";
 import { formatDuration } from "@/lib/format";
 import { hueFor } from "@/lib/format";
 
 export function FullscreenPlayer() {
   const player = usePlayer();
+  const pip = usePictureInPicture();
   if (!player.fullscreen || !player.current) return null;
   const track = player.current;
   const hue = hueFor(track.id);
@@ -23,6 +34,17 @@ export function FullscreenPlayer() {
       />
       <header className="relative flex items-center justify-between px-6 py-5">
         <span className="label-mono">Now playing</span>
+        <div className="flex items-center gap-4">
+        {pip.supported && (
+          <button
+            type="button"
+            onClick={pip.toggle}
+            aria-label={pip.isOpen ? "Close pop-out player" : "Pop out player"}
+            className={pip.isOpen ? "text-primary" : "text-muted-foreground hover:text-foreground"}
+          >
+            <PictureInPicture2 className="size-5" />
+          </button>
+        )}
         <button
           type="button"
           onClick={() => player.setFullscreen(false)}
@@ -31,6 +53,7 @@ export function FullscreenPlayer() {
         >
           <ChevronDown className="size-6" />
         </button>
+        </div>
       </header>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6">
