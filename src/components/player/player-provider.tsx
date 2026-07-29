@@ -610,11 +610,16 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           queue: prev.current ? [prev.current] : [],
           index: 0,
         })),
+      retrySource: () => retrySourceRef.current(),
     }),
     [],
   );
 
-  const value = useMemo(() => ({ ...state, ...actions }), [state, actions]);
+  const value = useMemo(
+    () => ({ ...state, ...actions, status, statusLabel, activeSource }),
+    [state, actions, status, statusLabel, activeSource],
+  );
+
 
   return (
     <PlayerContext.Provider value={value}>
