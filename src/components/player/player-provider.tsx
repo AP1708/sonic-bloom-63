@@ -642,6 +642,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // YouTube-sourced audio is paused by mobile browsers when the tab goes to the
+  // background — direct streams and Spotify keep playing. Explain it once.
+  const bgHintRef = useRef({ hidWithVideo: false, shown: false });
+  useEffect(() => {
+    const onVisibility = () => {
+      const hint = bgHintRef.current;
+      if (document.visibilityState === "hidden") {
+        hint.hidWithVideo = Boolean(videoIdRef.current) && isPlayingRef.current;
+        return;
+      }
+      if (hint.hidWithVideo && !hint.shown && !isPlayingRef.current && videoIdRef.current) {
+        hint.shown = true;
+        toast("Paused in the background", {
+          description:
+            "This track only has a YouTube source, and mobile browsers pause YouTube when the app isn't in front. Tracks with a direct or Spotify source keep playing with the screen off.",
+        });
+      }
+      hint.hidWithVideo = false;
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+
   const actions = useMemo<PlayerActions>(
     () => ({
       playTrack: (track, contextQueue) => {
