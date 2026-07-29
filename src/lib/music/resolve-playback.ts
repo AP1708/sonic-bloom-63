@@ -66,3 +66,32 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
   inFlight.set(key, promise);
   return promise;
 }
+
+/** Finds a Spotify track URI for a track that came from another source. */
+export async function resolveSpotifyUri(track: Track): Promise<string | null> {
+  if (track.spotifyUri) return track.spotifyUri;
+  const key = track.id;
+  if (spotifyCache.has(key)) return spotifyCache.get(key) ?? null;
+  const existing = spotifyInFlight.get(key);
+  if (existing) return existing;
+
+  const promise = (async () => {
+    try {
+      const results = await searchSpotify({
+        data: { query: `${track.artist} ${track.title}`.trim(), limit: 5 },
+      });
+      const hit = results.find((item) => matches(track, item)) ?? null;
+      const uri = hit?.spotifyUri ?? null;
+      spotifyCache.set(key, uri);
+      return uri;
+    } catch {
+      spotifyCache.set(key, null);
+      return null;
+    } finally {
+      spotifyInFlight.delete(key);
+    }
+  })();
+
+  spotifyInFlight.set(key, promise);
+  return promise;
+}
