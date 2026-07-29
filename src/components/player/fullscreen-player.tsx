@@ -46,7 +46,7 @@ export function FullscreenPlayer() {
       </header>
 
       <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="flex shrink-0 flex-col items-center justify-center gap-5 px-6 pb-6 lg:min-h-0 lg:flex-1 lg:gap-6">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-hidden px-6 pb-6 lg:gap-6">
           <Artwork
             seed={track.id}
             src={track.artworkUrl}
@@ -55,7 +55,7 @@ export function FullscreenPlayer() {
             rounded="rounded-2xl"
           />
           <div className="flex flex-col items-center gap-2 text-center">
-            <h1 className="text-3xl">{track.title}</h1>
+            <h1 className="line-clamp-2 text-2xl lg:text-3xl">{track.title}</h1>
             <div className="flex items-center gap-2">
               <p className="text-muted-foreground">{track.artist}</p>
               <SourceTag source={track.source} />
@@ -118,7 +118,7 @@ export function FullscreenPlayer() {
         </div>
 
         {/* Up next / lyrics — a column beside the artwork on desktop, tabs below it on phones. */}
-        <aside className="flex min-h-0 flex-1 flex-col border-t border-border bg-surface/60 backdrop-blur lg:w-96 lg:max-w-96 lg:flex-none lg:border-l lg:border-t-0">
+        <aside className="flex min-h-0 flex-1 flex-col border-t border-border bg-surface/60 backdrop-blur max-h-[52vh] lg:max-h-none lg:w-96 lg:max-w-96 lg:flex-none lg:border-l lg:border-t-0">
           <div className="flex shrink-0 items-center gap-1 border-b border-border px-3 py-2">
             {(["queue", "lyrics"] as const).map((value) => (
               <button
