@@ -53,6 +53,16 @@ export const searchYouTube = createServerFn({ method: "GET" })
     if (!apiKey) throw new Error("YouTube is not configured yet.");
     if (!data.query.trim()) return [];
 
+    const { cacheKey, readCache, writeCache, writeQuotaMiss, dedupe } = await import(
+      "./youtube.server"
+    );
+    const key = cacheKey(data.query, data.limit);
+    const cached = readCache(key);
+    if (cached) return cached;
+
+    return dedupe(key, async () => {
+
+
     const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
     searchUrl.searchParams.set("part", "snippet");
     searchUrl.searchParams.set("type", "video");
