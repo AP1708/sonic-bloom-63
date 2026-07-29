@@ -165,9 +165,21 @@ export const searchYouTube = createServerFn({ method: "GET" })
         return tracks;
       }
 
-      // Every key failed. Degrade quietly so Spotify/Archive results still render.
+      // Every key failed (usually the 100-search/day quota). Fall back to
+      // YouTube's own keyless web search so playback keeps working.
       console.error(`YouTube search exhausted all ${keys.length} key(s): ${lastError?.message}`);
+      try {
+        const { innertubeSearch } = await import("./youtube.server");
+        const tracks = await innertubeSearch(data.query, data.limit);
+        if (tracks.length) {
+          writeCache(key, tracks);
+          return tracks;
+        }
+      } catch (error) {
+        console.error(`YouTube keyless fallback failed: ${(error as Error).message}`);
+      }
       writeQuotaMiss(key);
       return [];
+
     });
   });
