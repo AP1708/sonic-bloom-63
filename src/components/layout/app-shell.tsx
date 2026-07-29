@@ -6,11 +6,13 @@ import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
 import { SpotifyConnectButton } from "@/components/music/spotify-connect";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
 import { useLikedSongs, useToggleLike } from "@/hooks/use-library";
 import { supabase } from "@/integrations/supabase/client";
 import { initials } from "@/lib/format";
+
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);
@@ -83,6 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-3">
+              <ThemeToggle className="hidden sm:flex" />
               <SpotifyConnectButton />
               {user ? (
                 <div className="flex items-center gap-3">

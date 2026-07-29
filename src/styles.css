@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * SONANCE design system — dark-only listening room.
- * Matte near-black surfaces, warm ember accent, artwork as the only real color.
+ * SONANCE design system — Neon Mint edition.
+ * Supports both light and dark modes. Artwork remains the only real color.
  * All colors are oklch semantic tokens. Never hardcode colors in components.
  */
 
@@ -46,8 +46,8 @@
 
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
-  --color-ember: var(--ember);
-  --color-ember-soft: var(--ember-soft);
+  --color-mint: var(--mint);
+  --color-mint-soft: var(--mint-soft);
   --color-spotify: var(--spotify);
   --color-youtube: var(--youtube);
 
@@ -61,48 +61,108 @@
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.145 0.004 285);
-  --foreground: oklch(0.97 0.002 285);
-  --surface: oklch(0.185 0.005 285);
-  --surface-raised: oklch(0.225 0.006 285);
+  /* Light mode: airy mint/cream surfaces with deep teal text. */
+  --background: oklch(0.97 0.01 170);
+  --foreground: oklch(0.20 0.03 230);
+  --surface: oklch(0.93 0.015 170);
+  --surface-raised: oklch(0.89 0.02 170);
 
-  --card: oklch(0.185 0.005 285);
-  --card-foreground: oklch(0.97 0.002 285);
-  --popover: oklch(0.205 0.006 285);
-  --popover-foreground: oklch(0.97 0.002 285);
+  --card: oklch(0.93 0.015 170);
+  --card-foreground: oklch(0.20 0.03 230);
+  --popover: oklch(0.95 0.01 170);
+  --popover-foreground: oklch(0.20 0.03 230);
 
-  --primary: oklch(0.74 0.175 52);
-  --primary-foreground: oklch(0.16 0.02 45);
-  --ember: oklch(0.74 0.175 52);
-  --ember-soft: oklch(0.62 0.14 40);
+  --primary: oklch(0.65 0.18 170);
+  --primary-foreground: oklch(0.99 0.01 170);
+  --mint: oklch(0.65 0.18 170);
+  --mint-soft: oklch(0.55 0.15 170);
 
-  --secondary: oklch(0.245 0.006 285);
-  --secondary-foreground: oklch(0.94 0.003 285);
-  --muted: oklch(0.235 0.005 285);
-  --muted-foreground: oklch(0.66 0.008 285);
-  --accent: oklch(0.27 0.01 285);
-  --accent-foreground: oklch(0.97 0.002 285);
+  --secondary: oklch(0.91 0.01 170);
+  --secondary-foreground: oklch(0.25 0.03 230);
+  --muted: oklch(0.88 0.015 170);
+  --muted-foreground: oklch(0.55 0.02 170);
+  --accent: oklch(0.90 0.02 170);
+  --accent-foreground: oklch(0.20 0.03 230);
 
   --destructive: oklch(0.62 0.21 25);
   --destructive-foreground: oklch(0.98 0.002 285);
 
-  --border: oklch(0.99 0 0 / 9%);
-  --input: oklch(0.99 0 0 / 12%);
-  --ring: oklch(0.74 0.175 52 / 55%);
+  --border: oklch(0.20 0.02 170 / 12%);
+  --input: oklch(0.20 0.02 170 / 14%);
+  --ring: oklch(0.65 0.18 170 / 50%);
 
   --spotify: oklch(0.72 0.19 148);
   --youtube: oklch(0.62 0.24 27);
 
-  --chart-1: oklch(0.74 0.175 52);
+  --chart-1: oklch(0.65 0.18 170);
   --chart-2: oklch(0.7 0.13 200);
   --chart-3: oklch(0.72 0.19 148);
   --chart-4: oklch(0.68 0.17 310);
   --chart-5: oklch(0.78 0.15 90);
 
-  --shadow-glow: 0 0 60px -12px oklch(0.74 0.175 52 / 35%);
-  --shadow-lift: 0 18px 40px -22px oklch(0 0 0 / 85%);
-  --gradient-ember: linear-gradient(135deg, var(--ember), var(--ember-soft));
+  --shadow-glow: 0 0 60px -12px oklch(0.65 0.18 170 / 35%);
+  --shadow-lift: 0 18px 40px -22px oklch(0 0 0 / 20%);
+  --gradient-mint: linear-gradient(135deg, var(--mint), var(--mint-soft));
   --gradient-veil: linear-gradient(to bottom, transparent, var(--background));
+
+  /* Artwork fallback gradients are theme-aware. */
+  --artwork-outer: 0.45;
+  --artwork-mid: 0.62;
+  --artwork-inner: 0.82;
+  --artwork-outer-hue: 170;
+
+  /* Fullscreen player ambient glow opacity. */
+  --player-glow-opacity: 0.18;
+}
+
+.dark {
+  /* Dark mode: midnight surfaces with a bright mint accent. */
+  --background: oklch(0.15 0.02 230);
+  --foreground: oklch(0.97 0.002 285);
+  --surface: oklch(0.20 0.03 230);
+  --surface-raised: oklch(0.24 0.04 230);
+
+  --card: oklch(0.20 0.03 230);
+  --card-foreground: oklch(0.97 0.002 285);
+  --popover: oklch(0.22 0.03 230);
+  --popover-foreground: oklch(0.97 0.002 285);
+
+  --primary: oklch(0.72 0.16 170);
+  --primary-foreground: oklch(0.16 0.02 230);
+  --mint: oklch(0.72 0.16 170);
+  --mint-soft: oklch(0.62 0.14 170);
+
+  --secondary: oklch(0.24 0.04 230);
+  --secondary-foreground: oklch(0.94 0.003 285);
+  --muted: oklch(0.26 0.03 230);
+  --muted-foreground: oklch(0.66 0.008 285);
+  --accent: oklch(0.27 0.01 285);
+  --accent-foreground: oklch(0.97 0.002 285);
+
+  --border: oklch(0.99 0 0 / 9%);
+  --input: oklch(0.99 0 0 / 12%);
+  --ring: oklch(0.72 0.16 170 / 55%);
+
+  --spotify: oklch(0.72 0.19 148);
+  --youtube: oklch(0.62 0.24 27);
+
+  --chart-1: oklch(0.72 0.16 170);
+  --chart-2: oklch(0.7 0.13 200);
+  --chart-3: oklch(0.72 0.19 148);
+  --chart-4: oklch(0.68 0.17 310);
+  --chart-5: oklch(0.78 0.15 90);
+
+  --shadow-glow: 0 0 60px -12px oklch(0.72 0.16 170 / 35%);
+  --shadow-lift: 0 18px 40px -22px oklch(0 0 0 / 85%);
+  --gradient-mint: linear-gradient(135deg, var(--mint), var(--mint-soft));
+  --gradient-veil: linear-gradient(to bottom, transparent, var(--background));
+
+  --artwork-outer: 0.18;
+  --artwork-mid: 0.28;
+  --artwork-inner: 0.55;
+  --artwork-outer-hue: 285;
+
+  --player-glow-opacity: 0.35;
 }
 
 @layer base {
@@ -111,6 +171,10 @@
   }
 
   html {
+    color-scheme: light;
+  }
+
+  html.dark {
     color-scheme: dark;
   }
 
@@ -159,7 +223,7 @@
   border-radius: var(--radius-lg);
 }
 
-@utility ember-glow {
+@utility mint-glow {
   box-shadow: var(--shadow-glow);
 }
 
