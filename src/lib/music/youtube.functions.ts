@@ -209,6 +209,6 @@ export const searchYouTube = createServerFn({ method: "GET" })
       }
       writeQuotaMiss(key);
       return [];
-
+      }
     });
   });
