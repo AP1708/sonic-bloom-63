@@ -42,12 +42,23 @@ export function readSession(): SpotifySession | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as SpotifySession;
-    return parsed?.accessToken ? parsed : null;
+    const parsed = JSON.parse(raw) as SpotifySession & { refreshToken?: string | null };
+    if (!parsed?.accessToken) return null;
+    // Older builds persisted the refresh token here — drop it on sight.
+    if ("refreshToken" in parsed) {
+      const clean: SpotifySession = {
+        accessToken: parsed.accessToken,
+        expiresAt: Number(parsed.expiresAt ?? 0),
+      };
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(clean));
+      return clean;
+    }
+    return parsed;
   } catch {
     return null;
   }
 }
+
 
 export function writeSession(session: SpotifySession | null) {
   if (typeof window === "undefined") return;
@@ -93,44 +104,30 @@ export async function beginSpotifyLogin(clientId: string) {
 export async function completeSpotifyLogin(code: string): Promise<string> {
   const codeVerifier = sessionStorage.getItem(VERIFIER_KEY) ?? "";
   if (!codeVerifier) throw new Error("Login session expired — please try connecting again.");
-  const tokens = await exchangeSpotifyCode({
+  // The exchange happens server-side: the refresh token is stored encrypted
+  // against the signed-in user and only the access token comes back.
+  const tokens = await connectSpotifyWithCode({
     data: { code, codeVerifier, redirectUri: redirectUri() },
   });
   sessionStorage.removeItem(VERIFIER_KEY);
-  // Mirror the session server-side (encrypted) so library imports can run there.
-  await linkSpotifyAccount({
-    data: {
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      expiresAt: Date.now() + tokens.expiresInSec * 1000,
-      scope: tokens.scope,
-    },
-  }).catch(() => undefined);
-  writeSession({
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
-    expiresAt: Date.now() + tokens.expiresInSec * 1000,
-  });
+  writeSession({ accessToken: tokens.accessToken, expiresAt: tokens.expiresAt });
   const back = sessionStorage.getItem(RETURN_KEY) ?? "/";
   sessionStorage.removeItem(RETURN_KEY);
   return back.startsWith("/") ? back : "/";
 }
 
-/** Returns a valid access token, refreshing it when it is close to expiring. */
+/**
+ * Returns a valid access token, asking the server to mint a fresh one when the
+ * cached token is close to expiring.
+ */
 export async function getSpotifyAccessToken(): Promise<string | null> {
   const session = readSession();
-  if (!session) return null;
-  if (session.expiresAt > Date.now() + 60_000) return session.accessToken;
-  if (!session.refreshToken) {
-    writeSession(null);
-    return null;
-  }
+  if (session && session.expiresAt > Date.now() + 60_000) return session.accessToken;
   try {
-    const tokens = await refreshSpotifyToken({ data: { refreshToken: session.refreshToken } });
+    const tokens = await mintSpotifyAccessToken();
     const next: SpotifySession = {
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken ?? session.refreshToken,
-      expiresAt: Date.now() + tokens.expiresInSec * 1000,
+      expiresAt: tokens.expiresAt,
     };
     writeSession(next);
     return next.accessToken;
@@ -139,3 +136,4 @@ export async function getSpotifyAccessToken(): Promise<string | null> {
     return null;
   }
 }
+
