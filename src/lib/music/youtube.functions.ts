@@ -76,6 +76,7 @@ export const searchYouTube = createServerFn({ method: "GET" })
   .inputValidator((input: SearchInput) => ({
     query: String(input?.query ?? "").slice(0, 200),
     limit: Math.min(Math.max(Number(input?.limit ?? 20), 1), 50),
+    musicOnly: Boolean(input?.musicOnly),
   }))
   .handler(async ({ data }): Promise<YouTubeSearchResult> => {
     const {
