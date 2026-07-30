@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * SONANCE design system — Neon Mint edition.
+ * IMUSIC design system — Neon Mint edition.
  * Supports both light and dark modes. Artwork remains the only real color.
  * All colors are oklch semantic tokens. Never hardcode colors in components.
  */

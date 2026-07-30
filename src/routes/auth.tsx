@@ -83,7 +83,7 @@ function AuthPage() {
       <div className="w-full max-w-sm">
         <Link to="/" className="mb-8 flex items-center justify-center gap-2">
           <Music4 className="size-5 text-primary" />
-          <span className="font-display text-lg tracking-tight">SONANCE</span>
+          <span className="font-display text-lg tracking-tight">IMUSIC</span>
         </Link>
 
         <div className="surface-panel flex flex-col gap-6 p-6">

@@ -415,7 +415,7 @@ function InsightsPanel() {
 
   const exportEvents = (name: string, rows: InsightRow[]) => {
     downloadCsv(
-      `sonance-${name}-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
+      `imusic-${name}-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
       toCsv(rows, [
         { key: "created_at", value: (row) => row.created_at },
         { key: "event", value: (row) => row.event },
@@ -486,7 +486,7 @@ function InsightsPanel() {
             count={data.fallbacks.length}
             onExport={() => {
               downloadCsv(
-                `sonance-fallback-summary-${range}.csv`,
+                `imusic-fallback-summary-${range}.csv`,
                 toCsv(data.fallbacks, [
                   { key: "from", value: (row) => row.from },
                   { key: "to", value: (row) => row.to },

@@ -43,7 +43,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     <nav className="flex h-full w-64 shrink-0 flex-col gap-6 border-r border-border bg-surface px-4 py-6">
       <Link to="/" onClick={onNavigate} className="flex items-center gap-2 px-2">
         <Music4 className="size-5 text-primary" />
-        <span className="font-display text-lg tracking-tight">SONANCE</span>
+        <span className="font-display text-lg tracking-tight">IMUSIC</span>
       </Link>
 
       <ul className="flex flex-col gap-1">

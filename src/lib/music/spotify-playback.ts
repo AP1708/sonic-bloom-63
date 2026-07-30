@@ -80,7 +80,7 @@ class SpotifyController {
       };
 
       const player = new w.Spotify.Player({
-        name: "SONANCE Web Player",
+        name: "IMUSIC Web Player",
         getOAuthToken: (cb: (token: string) => void) => {
           void getSpotifyAccessToken().then((fresh) => fresh && cb(fresh));
         },
