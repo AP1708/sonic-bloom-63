@@ -187,6 +187,8 @@ export async function runSmartDownloads(input: SmartDownloadInput): Promise<Smar
       id: track.id,
       title: track.title,
       artist: track.artist,
+      track,
+
       status: "queued",
       received: 0,
       total: track.audioUrl ? Math.round(estimateBytes(track)) : 0,
