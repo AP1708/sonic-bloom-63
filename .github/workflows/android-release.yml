@@ -93,35 +93,54 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon
 
-      - name: Verify signature and rename
+      - name: Verify signatures and rename per-ABI builds
         id: apk
         run: |
-          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
-          if [ -z "$APK" ]; then echo "No APK produced"; exit 1; fi
-          OUT="imusic-${{ steps.version.outputs.version }}.apk"
-          cp "$APK" "$OUT"
+          VERSION="${{ steps.version.outputs.version }}"
           BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
-          if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
-            "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT"
-          fi
-          echo "sha256=$(sha256sum "$OUT" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
-          echo "name=$OUT" >> "$GITHUB_OUTPUT"
+          mkdir -p release-assets
+          NOTES=""
+          FOUND=0
+          for APK in $(find android/app/build/outputs/apk/release -name "*.apk" | sort); do
+            BASE=$(basename "$APK" | tr '[:upper:]' '[:lower:]')
+            case "$BASE" in
+              *arm64-v8a*)   ABI="arm64-v8a" ;;
+              *armeabi-v7a*) ABI="armeabi-v7a" ;;
+              *x86_64*)      ABI="x86_64" ;;
+              *)             ABI="universal" ;;
+            esac
+            OUT="release-assets/imusic-$VERSION-$ABI.apk"
+            cp "$APK" "$OUT"
+            if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+              "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT"
+            fi
+            SHA=$(sha256sum "$OUT" | cut -d' ' -f1)
+            NOTES="$NOTES- \`$(basename "$OUT")\` — SHA-256: \`$SHA\`\n"
+            FOUND=$((FOUND + 1))
+          done
+          if [ "$FOUND" -eq 0 ]; then echo "No APK produced"; exit 1; fi
+          {
+            echo "notes<<EOF"
+            printf "%b" "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.apk.outputs.name }}
-          path: ${{ steps.apk.outputs.name }}
+          name: imusic-${{ steps.version.outputs.version }}-apks
+          path: release-assets/*.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: IMUSIC ${{ steps.version.outputs.version }}
-          files: ${{ steps.apk.outputs.name }}
+          files: release-assets/*.apk
           body: |
             ### IMUSIC ${{ steps.version.outputs.version }} for Android
 
-            Download `${{ steps.apk.outputs.name }}` below, open it on your phone and
-            allow installs from unknown sources when prompted.
+            Pick the build for your phone — the download page selects it automatically.
+            `arm64-v8a` fits nearly every phone from 2016 onwards; `universal` works everywhere.
 
-            SHA-256: `${{ steps.apk.outputs.sha256 }}`
+            ${{ steps.apk.outputs.notes }}
+

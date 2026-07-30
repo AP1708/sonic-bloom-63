@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -15,7 +17,14 @@ import { AppShell } from "@/components/layout/app-shell";
 import { InstallButton } from "@/components/pwa/install-button";
 import { useApkDownload } from "@/hooks/use-apk-download";
 import { getLatestAndroidRelease } from "@/lib/apk/release.functions";
-import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/apk/release";
+import {
+  ANDROID_RELEASES_URL,
+  formatBytes,
+  formatReleaseDate,
+  pickVariant,
+} from "@/lib/apk/release";
+import { ABI_HINT, ABI_LABEL, detectAbi, type Abi } from "@/lib/apk/device";
+
 
 export const Route = createFileRoute("/download")({
   head: () => ({
@@ -38,9 +47,19 @@ export const Route = createFileRoute("/download")({
   component: DownloadPage,
 });
 
-function shaFrom(notes: string | null) {
-  const match = notes?.match(/SHA-256:\s*`?([a-f0-9]{64})`?/i);
+function shaFrom(notes: string | null, fileName?: string) {
+  if (!notes) return null;
+  if (fileName) {
+    // Release notes list one "`file.apk` — SHA-256: `hash`" line per build.
+    const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const perFile = notes.match(
+      new RegExp(`${escaped}[^\\n]*?SHA-256:\\s*\`?([a-f0-9]{64})\`?`, "i"),
+    );
+    if (perFile?.[1]) return perFile[1];
+  }
+  const match = notes.match(/SHA-256:\s*`?([a-f0-9]{64})`?/i);
   return match?.[1] ?? null;
+
 }
 
 function DownloadPage() {
@@ -51,13 +70,37 @@ function DownloadPage() {
     staleTime: 10 * 60 * 1000,
   });
   const release = data?.status === "ok" ? data.release : null;
+
+  // Detect the phone's CPU architecture so the matching (smaller) build is preselected.
+  const [detectedAbi, setDetectedAbi] = useState<Abi | null>(null);
+  const [chosenAbi, setChosenAbi] = useState<Abi | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void detectAbi().then((abi) => {
+      if (!cancelled) setDetectedAbi(abi);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const variants = release?.variants ?? [];
+  const recommended = detectedAbi ? pickVariant(variants, detectedAbi) : null;
+  const selected =
+    (chosenAbi ? variants.find((variant) => variant.abi === chosenAbi) : null) ??
+    recommended ??
+    (release
+      ? { abi: "universal" as Abi, apkUrl: release.apkUrl, apkName: release.apkName, sizeBytes: release.sizeBytes }
+      : null);
+
   const download = useApkDownload(
-    release
+    release && selected
       ? {
-          version: release.version,
-          apkUrl: release.apkUrl,
-          apkName: release.apkName,
-          sizeBytes: release.sizeBytes,
+          // Key the resumable store per build so switching variants keeps both.
+          version: `${release.version}-${selected.abi}`,
+          apkUrl: selected.apkUrl,
+          apkName: selected.apkName,
+          sizeBytes: selected.sizeBytes,
         }
       : null,
   );
@@ -92,9 +135,52 @@ function DownloadPage() {
                   Released {formatReleaseDate(data.release.publishedAt)}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {formatBytes(data.release.sizeBytes)}
+                  {formatBytes(selected?.sizeBytes ?? data.release.sizeBytes)}
                 </span>
+                {selected ? (
+                  <span className="text-xs text-muted-foreground">{ABI_LABEL[selected.abi]}</span>
+                ) : null}
               </div>
+
+              {variants.length > 1 ? (
+                <fieldset className="flex flex-col gap-3" disabled={download.active}>
+                  <legend className="text-xs text-muted-foreground">
+                    {recommended
+                      ? `Matched to your device: ${ABI_LABEL[recommended.abi]}`
+                      : "Choose the build for your device"}
+                  </legend>
+                  <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Android build">
+                    {variants.map((variant) => {
+                      const active = selected?.abi === variant.abi;
+                      return (
+                        <button
+                          key={variant.abi}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setChosenAbi(variant.abi)}
+                          className={`flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors ${
+                            active ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <span className="flex w-full items-center justify-between gap-2 text-sm">
+                            {ABI_LABEL[variant.abi]}
+                            {recommended?.abi === variant.abi ? (
+                              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] text-primary">
+                                Recommended
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatBytes(variant.sizeBytes)} · {ABI_HINT[variant.abi]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
+
 
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
@@ -183,10 +269,11 @@ function DownloadPage() {
               </div>
 
 
-              {shaFrom(data.release.notes) ? (
+              {shaFrom(data.release.notes, selected?.apkName) ? (
                 <p className="flex items-start gap-2 break-all text-xs text-muted-foreground">
                   <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  SHA-256 {shaFrom(data.release.notes)}
+                  SHA-256 {shaFrom(data.release.notes, selected?.apkName)}
+
                 </p>
               ) : null}
             </>
