@@ -12,6 +12,8 @@ import { Artwork } from "@/components/music/artwork";
 import { usePlayer } from "@/components/player/player-provider";
 import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/catalog";
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
+import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
+import { feedSeed, seededSample, seededShuffle } from "@/lib/music/feed-seed";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
@@ -19,6 +21,7 @@ import { useSession } from "@/hooks/use-session";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { greeting } from "@/lib/format";
 import type { Track } from "@/lib/music/types";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -47,17 +50,6 @@ function matchesMood(track: Track, keywords: string[]) {
   return keywords.some((word) => haystack.includes(word));
 }
 
-/** Deterministic spread so rails don't all start with the same recordings. */
-function sample<T>(items: T[], count: number, offset = 0): T[] {
-  if (items.length <= count) return items;
-  const step = Math.max(1, Math.floor(items.length / count));
-  const out: T[] = [];
-  for (let i = 0; out.length < count && i < items.length; i += step) {
-    out.push(items[(i + offset) % items.length]);
-  }
-  return out;
-}
-
 function HomePage() {
   const player = usePlayer();
   const { user } = useSession();
@@ -73,6 +65,36 @@ function HomePage() {
   const [mood, setMood] = useState("all");
   const keywords = MOODS.find((m) => m.id === mood)?.keywords ?? [];
 
+  /** Rotates each time the app is opened, so the feed is never the same twice. */
+  const seed = feedSeed();
+  /** Seeded pick helper — `salt` keeps each rail distinct within a session. */
+  const sample = useMemo(
+    () =>
+      <T,>(items: T[], count: number, salt = 0): T[] =>
+        seededSample(items, count, seed + salt * 7919),
+    [seed],
+  );
+
+  const affinityArtists = useMemo(
+    () => topArtists(history ?? [], 4).map((entry) => entry.artist),
+    [history],
+  );
+
+  /** Live suggestions from the YouTube Music catalog — new songs and artists. */
+  const { data: discovery, isLoading: discoveryLoading } = useQuery({
+    queryKey: ["discovery-feed", seed, mood, affinityArtists.join("|")],
+    queryFn: () =>
+      getDiscoveryFeed({
+        data: {
+          seed,
+          seedArtists: affinityArtists,
+          mood: MOODS.find((m) => m.id === mood)?.label.toLowerCase() ?? "",
+        },
+      }),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
   const pool = useMemo<Track[]>(() => {
     const base = catalog?.tracks?.length ? catalog.tracks : DEMO_TRACKS;
     const filtered = base.filter((track) => matchesMood(track, keywords));
@@ -81,20 +103,31 @@ function HomePage() {
 
   const isLiked = (id: string) => Boolean(liked?.some((track) => track.id === id));
 
+  const discoveryTracks = useMemo(
+    () => (discovery?.rails ?? []).flatMap((rail) => rail.tracks),
+    [discovery],
+  );
+
   const quickPicks = useMemo(() => {
     const seen = new Set<string>();
     const out: Track[] = [];
-    for (const track of [...(liked ?? []), ...sample(pool, 40, 3)]) {
+    // Blend fresh discovery picks with liked songs and the archive so every
+    // open surfaces something new at the top of the feed.
+    const mixed = seededShuffle(
+      [...sample(discoveryTracks, 10, 2), ...(liked ?? []).slice(0, 6), ...sample(pool, 30, 3)],
+      seed + 17,
+    );
+    for (const track of mixed) {
       if (seen.has(track.id)) continue;
       seen.add(track.id);
       out.push(track);
       if (out.length >= 20) break;
     }
     return out;
-  }, [liked, pool]);
+  }, [liked, pool, discoveryTracks, sample, seed]);
 
   const heroTrack = quickPicks[0];
-  const trending = useMemo(() => sample(pool, 18, 97), [pool]);
+  const trending = useMemo(() => sample(pool, 18, 11), [pool, sample]);
   const listenAgain = useMemo(() => (recent ?? []).slice(0, 12), [recent]);
 
   const artists = useMemo(() => {
@@ -104,38 +137,73 @@ function HomePage() {
       caption: `${entry.plays} play${entry.plays === 1 ? "" : "s"}`,
     }));
     const seen = new Set(affinity.map((a) => a.id));
-    const fromCatalog = (catalog?.artists ?? [])
-      .filter((artist) => !seen.has(artist.id))
-      .slice(0, 16)
-      .map((artist) => ({
-        id: artist.id,
-        name: artist.name,
-        caption: `${artist.trackCount} songs`,
-      }));
+    const fromCatalog = sample(
+      (catalog?.artists ?? []).filter((artist) => !seen.has(artist.id)),
+      16,
+      5,
+    ).map((artist) => ({
+      id: artist.id,
+      name: artist.name,
+      caption: `${artist.trackCount} songs`,
+    }));
     return [...affinity, ...fromCatalog].slice(0, 18);
-  }, [history, catalog]);
+  }, [history, catalog, sample]);
+
+  /** Artists from discovery the listener has no history with. */
+  const newArtists = useMemo(() => {
+    const known = new Set(
+      [
+        ...(history ?? []).map((entry) => entry.track?.artist?.toLowerCase()),
+        ...(catalog?.artists ?? []).map((artist) => artist.name.toLowerCase()),
+      ].filter(Boolean) as string[],
+    );
+    return (discovery?.artists ?? []).filter((artist) => !known.has(artist.name.toLowerCase()));
+  }, [discovery, history, catalog]);
 
   const mixes = useMemo(() => {
     const affinity = topArtists(history ?? [], 4);
     const seeds = affinity.length
       ? affinity.map((entry) => entry.artist)
-      : (catalog?.artists ?? []).slice(0, 6).map((artist) => artist.name);
+      : sample(catalog?.artists ?? [], 6, 13).map((artist) => artist.name);
     return seeds.slice(0, 6).map((name) => {
       const bucket = artistTracks(catalog, artistSlug(name));
-      const tracks = bucket.length ? sample(bucket, 30, 5) : sample(pool, 30, 11);
+      const tracks = bucket.length ? sample(bucket, 30, 19) : sample(pool, 30, 23);
       return { id: `mix-${artistSlug(name)}`, title: `${name} radio`, subtitle: "Mix · Sonance", tracks };
     });
-  }, [history, catalog, pool]);
+  }, [history, catalog, pool, sample]);
 
-  /** Endless rails generated from the catalog, revealed as the user scrolls. */
+  /** Endless rails, revealed as the user scrolls: discovery first, then archive. */
   const extraSections = useMemo(() => {
-    const used = new Set(artists.slice(0, 8).map((artist) => artist.id));
     const sections: { id: string; caption: string; title: string; tracks: Track[] }[] = [];
-    const catalogArtists = (catalog?.artists ?? []).filter((artist) => !used.has(artist.id));
+
+    // Extra discovery rails beyond the three shown up top.
+    (discovery?.rails ?? []).slice(3).forEach((rail) => {
+      sections.push({ id: rail.id, caption: rail.caption, title: rail.title, tracks: rail.tracks });
+    });
+
+    // Discovery artists become their own rails so scrolling keeps introducing
+    // unfamiliar names, not just archive deep cuts.
+    newArtists.slice(0, 8).forEach((artist, index) => {
+      const tracks = discoveryTracks.filter((track) => track.artist === artist.name);
+      if (tracks.length < 4) return;
+      sections.push({
+        id: `new-artist-${artistSlug(artist.name)}-${index}`,
+        caption: "New to you",
+        title: artist.name,
+        tracks,
+      });
+    });
+
+    const used = new Set(artists.slice(0, 8).map((artist) => artist.id));
+    const catalogArtists = sample(
+      (catalog?.artists ?? []).filter((artist) => !used.has(artist.id)),
+      40,
+      29,
+    );
 
     catalogArtists.forEach((artist, index) => {
       const bucket = artistTracks(catalog, artist.id);
-      const tracks = bucket.length >= 4 ? sample(bucket, 16, index) : [];
+      const tracks = bucket.length >= 4 ? sample(bucket, 16, 31 + index) : [];
       if (tracks.length < 4) return;
       sections.push({
         id: `artist-rail-${artist.id}`,
@@ -145,8 +213,8 @@ function HomePage() {
       });
     });
 
-    for (let i = 0; sections.length < 24 && i < 24; i += 1) {
-      const tracks = sample(pool, 16, 131 + i * 37);
+    for (let i = 0; sections.length < 30 && i < 24; i += 1) {
+      const tracks = sample(pool, 16, 101 + i);
       if (tracks.length < 4) break;
       sections.push({
         id: `deep-cuts-${i}`,
@@ -156,7 +224,7 @@ function HomePage() {
       });
     }
     return sections;
-  }, [artists, catalog, pool]);
+  }, [artists, catalog, pool, discovery, discoveryTracks, newArtists, sample]);
 
   const SECTIONS_PER_PAGE = 2;
   const { pages, hasMore, loading, sentinelRef } = useInfiniteScroll({
@@ -164,6 +232,8 @@ function HomePage() {
     initialPages: 1,
   });
   const visibleExtras = extraSections.slice(0, pages * SECTIONS_PER_PAGE);
+  const topRails = (discovery?.rails ?? []).slice(0, 3);
+
 
   return (
     <AppShell>
@@ -227,6 +297,62 @@ function HomePage() {
             </button>
           </section>
         )}
+
+        {/* Fresh suggestions pulled live from YouTube Music on every open. */}
+        {discoveryLoading && topRails.length === 0 && (
+          <section className="flex flex-col gap-4" aria-busy>
+            <SectionHeader caption="Fetching today's picks" title="New releases" />
+            <div className="scroll-rail flex gap-4 overflow-hidden">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-48 w-36 shrink-0 animate-pulse rounded-xl bg-muted/40 sm:w-40"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {topRails.map((rail) => (
+          <section key={rail.id} className="flex flex-col gap-4">
+            <SectionHeader caption={rail.caption} title={rail.title} moreTo="/search" />
+            <Carousel>
+              {rail.tracks.map((track) => (
+                <SongCard
+                  key={`${rail.id}-${track.id}`}
+                  track={track}
+                  playing={player.isPlaying && player.current?.id === track.id}
+                  onPlay={() => player.playTrack(track, rail.tracks)}
+                />
+              ))}
+            </Carousel>
+          </section>
+        ))}
+
+        {newArtists.length > 0 && (
+          <section className="flex flex-col gap-4">
+            <SectionHeader caption="Artists you haven't heard yet" title="New artists for you" />
+            <Carousel>
+              {newArtists.map((artist) => (
+                <ArtistCard
+                  key={artist.name}
+                  id={artistSlug(artist.name)}
+                  name={artist.name}
+                  caption="Start radio"
+                  imageUrl={artist.artworkUrl}
+                  onPlay={() =>
+                    player.playTrack(
+                      artist.sample,
+                      discoveryTracks.filter((track) => track.artist === artist.name),
+                    )
+                  }
+                />
+              ))}
+            </Carousel>
+          </section>
+        )}
+
+
 
         {listenAgain.length > 0 && (
           <section className="flex flex-col gap-4">
