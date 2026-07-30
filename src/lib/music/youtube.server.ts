@@ -309,3 +309,117 @@ export async function innertubeSearch(query: string, limit: number): Promise<Tra
   }
   return tracks;
 }
+
+/* ------------------------------------------------------------------ *
+ * YouTube Music search (primary source)
+ *
+ * Uses the music.youtube.com innertube endpoint with the WEB_REMIX client
+ * and the "songs" filter, so results are actual songs (artist, album,
+ * duration, square art) rather than arbitrary videos. Needs no API key and
+ * no quota, and every result is a normal video id that plays in the
+ * official IFrame player.
+ * ------------------------------------------------------------------ */
+
+const YTM_SONGS_FILTER = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D";
+
+interface MusicListItem {
+  thumbnail?: {
+    musicThumbnailRenderer?: { thumbnail?: { thumbnails?: { url: string }[] } };
+  };
+  overlay?: {
+    musicItemThumbnailOverlayRenderer?: {
+      content?: {
+        musicPlayButtonRenderer?: {
+          playNavigationEndpoint?: { watchEndpoint?: { videoId?: string } };
+        };
+      };
+    };
+  };
+  flexColumns?: {
+    musicResponsiveListItemFlexColumnRenderer?: { text?: { runs?: { text?: string }[] } };
+  }[];
+  playlistItemData?: { videoId?: string };
+}
+
+function collectMusicItems(node: unknown, out: MusicListItem[]): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) collectMusicItems(item, out);
+    return;
+  }
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (key === "musicResponsiveListItemRenderer" && value && typeof value === "object") {
+      out.push(value as MusicListItem);
+      continue;
+    }
+    collectMusicItems(value, out);
+  }
+}
+
+/** YouTube Music serves tiny square art; ask for a larger crop. */
+function upscaleThumbnail(url: string | undefined): string | null {
+  if (!url) return null;
+  return url.replace(/w\d+-h\d+/, "w544-h544");
+}
+
+export async function youtubeMusicSearch(query: string, limit: number): Promise<Track[]> {
+  const res = await fetch("https://music.youtube.com/youtubei/v1/search?prettyPrint=false", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: "https://music.youtube.com" },
+    body: JSON.stringify({
+      context: {
+        client: {
+          clientName: "WEB_REMIX",
+          clientVersion: "1.20240403.01.00",
+          hl: "en",
+          gl: "US",
+        },
+      },
+      query,
+      params: YTM_SONGS_FILTER,
+    }),
+  });
+  if (!res.ok) throw new Error(`YouTube Music search failed (${res.status})`);
+
+  const items: MusicListItem[] = [];
+  collectMusicItems(await res.json(), items);
+
+  const seen = new Set<string>();
+  const tracks: Track[] = [];
+  for (const item of items) {
+    const videoId =
+      item.playlistItemData?.videoId ??
+      item.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer
+        ?.playNavigationEndpoint?.watchEndpoint?.videoId;
+    if (!videoId || seen.has(videoId)) continue;
+
+    const columns = item.flexColumns ?? [];
+    const title =
+      columns[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.[0]?.text ?? "";
+    if (!title) continue;
+    seen.add(videoId);
+
+    const subRuns =
+      columns[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs?.map(
+        (run) => run.text ?? "",
+      ) ?? [];
+    const meaningful = subRuns.filter((text) => text.trim() && text.trim() !== "•");
+    const artist = meaningful[0]?.trim() || "YouTube Music";
+    const durationText = meaningful.find((text) => /^\d+:\d{2}(:\d{2})?$/.test(text.trim()));
+
+    const thumbs = item.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails ?? [];
+    tracks.push({
+      id: `yt-${videoId}`,
+      source: "youtube",
+      title: title.trim(),
+      artist,
+      artworkUrl: upscaleThumbnail(thumbs[thumbs.length - 1]?.url),
+      durationSec: parseClockDuration(durationText?.trim()),
+      audioUrl: null,
+      youtubeVideoId: videoId,
+      externalUrl: `https://music.youtube.com/watch?v=${videoId}`,
+    });
+    if (tracks.length >= limit) break;
+  }
+  return tracks;
+}
