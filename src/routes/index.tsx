@@ -271,7 +271,7 @@ function HomePage() {
                     id: collection.id,
                     title: collection.title,
                     artist: collection.subtitle,
-                    album: null,
+                    album: undefined,
                     durationSec: 0,
                     source: collection.source,
                     artworkUrl: collection.artworkUrl ?? null,
