@@ -158,19 +158,26 @@ function DownloadsPage() {
             />
           </div>
 
-          {running ? (
+          {progress.items?.length ? (
+            <DownloadProgressCard
+              progress={progress}
+              running={running}
+              onCancel={offline.cancelRefresh}
+              onDismiss={offline.dismissProgress}
+              onRetry={(item) => void offline.retryItem(item)}
+            />
+          ) : running ? (
             <p className="label-mono">
-              {progress.phase === "downloading"
-                ? `Downloading ${progress.completed + 1}/${progress.total} · ${progress.currentTitle ?? ""}`
-                : progress.phase === "planning"
-                  ? "Working out what you'll want offline…"
-                  : "Tidying up…"}
+              {progress.phase === "planning"
+                ? "Working out what you'll want offline…"
+                : "Tidying up…"}
             </p>
           ) : settings.lastRunAt ? (
             <p className="label-mono">
               Last refreshed {new Date(settings.lastRunAt).toLocaleString()}
             </p>
           ) : null}
+
         </section>
 
         <Section
