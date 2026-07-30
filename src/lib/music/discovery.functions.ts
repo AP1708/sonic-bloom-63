@@ -104,6 +104,7 @@ export const getDiscoveryFeed = createServerFn({ method: "GET" })
     const { cacheKey, readCache, writeCache, dedupe, youtubeMusicSearch } = await import(
       "./youtube.server"
     );
+    const { searchSpotifyTracks } = await import("./spotify.server");
 
     const moodSuffix = data.mood && data.mood !== "all" ? ` ${data.mood}` : "";
 
@@ -122,18 +123,41 @@ export const getDiscoveryFeed = createServerFn({ method: "GET" })
       }
     };
 
+    /** Spotify catalog lookup — cached alongside the YouTube Music results. */
+    const runSpotify = async (query: string, limit: number): Promise<Track[]> => {
+      const key = `${cacheKey(query, limit)}|spotify`;
+      const cached = readCache(key);
+      if (cached) return cached;
+      try {
+        return await dedupe(key, async () => {
+          const songs = await searchSpotifyTracks(query, limit);
+          if (songs.length) writeCache(key, songs);
+          return songs;
+        });
+      } catch {
+        // Spotify not configured / rate limited — the rest of the feed still loads.
+        return [];
+      }
+    };
+
     const newQueries = slice(NEW_RELEASE_QUERIES, data.seed, 2).map((q) => q + moodSuffix);
     const trendingQueries = slice(TRENDING_QUERIES, data.seed + 3, 2).map((q) => q + moodSuffix);
     const freshQueries = data.seedArtists.length
       ? data.seedArtists.slice(0, 2).map((artist) => `${artist} similar artists${moodSuffix}`)
       : slice(FRESH_QUERIES, data.seed + 7, 2).map((q) => q + moodSuffix);
     const artistQueries = slice(FRESH_QUERIES, data.seed + 11, 2).map((q) => q + moodSuffix);
+    const spotifyQueries = (
+      data.seedArtists.length
+        ? [data.seedArtists[0], ...slice(SPOTIFY_QUERIES, data.seed + 5, 2)]
+        : slice(SPOTIFY_QUERIES, data.seed + 5, 3)
+    ).map((q) => q + moodSuffix);
 
-    const [newRes, trendRes, freshRes, artistRes] = await Promise.all([
+    const [newRes, trendRes, freshRes, artistRes, spotifyRes] = await Promise.all([
       Promise.all(newQueries.map((q) => run(q, 16))),
       Promise.all(trendingQueries.map((q) => run(q, 16))),
       Promise.all(freshQueries.map((q) => run(q, 16))),
       Promise.all(artistQueries.map((q) => run(q, 16))),
+      Promise.all(spotifyQueries.map((q) => runSpotify(q, 10))),
     ]);
 
     const seen = new Set<string>();
@@ -146,6 +170,7 @@ export const getDiscoveryFeed = createServerFn({ method: "GET" })
 
     push("discovery-new", "Just added to YouTube Music", "New releases", newRes);
     push("discovery-trending", "Charting right now", "Trending now", trendRes);
+    push("discovery-spotify", "Straight from Spotify", "New on Spotify", spotifyRes);
     push(
       "discovery-fresh",
       data.seedArtists.length ? "Because you listen to " + data.seedArtists[0] : "Fresh off the catalog",
