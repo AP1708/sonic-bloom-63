@@ -25,6 +25,7 @@ import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPlaylistPlaylistIdRouteImport } from './routes/_authenticated/playlist.$playlistId'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as ApiPublicHooksYoutubeKeyHealthRouteImport } from './routes/api/public/hooks/youtube-key-health'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -107,6 +108,12 @@ const AuthenticatedPlaylistPlaylistIdRoute =
     path: '/playlist/$playlistId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksYoutubeKeyHealthRoute =
   ApiPublicHooksYoutubeKeyHealthRouteImport.update({
     id: '/api/public/hooks/youtube-key-health',
@@ -131,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/artists/': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,6 +157,7 @@ export interface FileRoutesByTo {
   '/artists': typeof ArtistsIndexRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -169,6 +178,7 @@ export interface FileRoutesById {
   '/artists/': typeof ArtistsIndexRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/artists/'
     | '/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
+    | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/artists'
     | '/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
+    | '/lovable/email/transactional/preview'
   id:
     | '__root__'
     | '/'
@@ -226,6 +238,7 @@ export interface FileRouteTypes {
     | '/artists/'
     | '/_authenticated/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
+    | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -241,6 +254,7 @@ export interface RootRouteChildren {
   YoutubeCallbackRoute: typeof YoutubeCallbackRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
   ApiPublicHooksYoutubeKeyHealthRoute: typeof ApiPublicHooksYoutubeKeyHealthRoute
+  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -357,6 +371,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlaylistPlaylistIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/youtube-key-health': {
       id: '/api/public/hooks/youtube-key-health'
       path: '/api/public/hooks/youtube-key-health'
@@ -399,6 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   YoutubeCallbackRoute: YoutubeCallbackRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
   ApiPublicHooksYoutubeKeyHealthRoute: ApiPublicHooksYoutubeKeyHealthRoute,
+  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
