@@ -1,49 +1,39 @@
 ## Goal
 
-Ship IMUSIC as an installable Android APK, signed with a stable release key, built automatically in CI, and offer it from an in-app `/download` page that always shows the newest published version.
+Get an installable IMUSIC APK published on your GitHub, with the in-app `/download` page automatically serving whatever the latest release is.
 
-Nothing Android-related exists yet (no `android/`, no Capacitor, no download route), so this is a fresh setup.
+I'll assume the repo is **`Ayush1708/imusic`** — tell me if the repo name differs and I'll use that instead.
 
-## 1. Capacitor Android wrapper
+## What changes
 
-- Add `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`.
-- Add `capacitor.config.ts`: app id `app.lovable.imusic`, app name `IMUSIC`, web dir pointing at the built client output, and a `server.url` pointing at the published site so the APK loads the live app (keeps YouTube Music / Spotify playback, auth, and Cloud data working exactly as on the web).
-- Generate the native `android/` project and drop in the existing IMUSIC icon set as launcher icons plus a splash matching the dark theme.
-- Android manifest: internet permission, `usesCleartextTraffic` off, foreground/audio-friendly config so background playback behaves like the PWA.
+1. **Point the app at your repo**
+   - `src/lib/android/release.ts`: change `ANDROID_RELEASE_REPO` from `AP1708/imusic` to `Ayush1708/imusic`.
+   - The `/download` route already fetches the newest GitHub Release, picks the `.apk` asset, and shows version, size, SHA-256 and install steps — so once a release exists there, the page updates itself with no further code changes.
 
-## 2. Release signing (stable key, kept in GitHub secrets)
+2. **Keystore generation (you run it once, locally)**
+   - Keep `scripts/generate-keystore.sh`, and add a short `android/RELEASE.md` covering:
+     - generating the keystore (`keytool`, alias, validity, passwords),
+     - where to keep it safe (never commit it),
+     - the base64 export used if you later want CI signing.
 
-- Add `scripts/generate-keystore.sh`: runs `keytool` once locally, prints the base64 of the keystore, and lists exactly which four GitHub repository secrets to paste it into:
-  - `ANDROID_KEYSTORE_BASE64`
-  - `ANDROID_KEYSTORE_PASSWORD`
-  - `ANDROID_KEY_ALIAS`
-  - `ANDROID_KEY_PASSWORD`
-- The build reads those secrets, decodes the keystore into the runner, and signs `release` via a Gradle signing config that falls back to unsigned when the secrets are absent (so forks/PRs still build).
-- Keystore file itself is gitignored — only the CI secrets hold it. Losing it means future updates can't install over old ones, so the script warns to back it up.
+3. **Manual build + upload guide**
+   - Same `android/RELEASE.md` documents the local flow:
+     `bun run build` → `npx cap sync android` → `./gradlew assembleRelease` → sign with the keystore → rename to `imusic-<version>.apk`.
+   - Then: create a GitHub Release tagged `v<version>` in `Ayush1708/imusic` and attach the APK. Nothing else needed — the download page reads it live.
 
-## 3. CI workflow: `.github/workflows/android-release.yml`
+4. **Tidy the CI workflow**
+   - Since you're uploading manually, `.github/workflows/android-release.yml` gets switched to `workflow_dispatch` only (no auto-run on tag push), so it never fails for missing keystore secrets but stays available if you later want automated builds.
 
-- Triggers: pushing a `v*` tag, plus manual dispatch with a version input.
-- Steps: checkout, Bun install, web build, `cap sync android`, JDK 17 + Android SDK setup, `gradlew assembleRelease`, `zipalign`/`apksigner` verification, then publish a GitHub Release for the tag with the APK attached as `imusic-<version>.apk`.
-- Version name/code derive from the tag so each release is a clean upgrade over the last.
-- Release body notes the SHA-256 fingerprint of the APK for verification.
-
-## 4. `/download` page wired to GitHub Releases
-
-- New route `src/routes/download.tsx` with IMUSIC-styled dark UI and its own SEO head (title/description/og).
-- A server function fetches the latest release from `https://api.github.com/repos/<owner>/<repo>/releases/latest` (cached server-side ~10 min to stay well under the unauthenticated rate limit) and returns version, publish date, APK asset URL, and file size.
-- The page shows: version badge, release date, APK size, a primary "Download APK for Android" button pointing at the asset, install instructions (allow install from unknown sources), and the SHA-256 line.
-- Graceful states: loading skeleton, and a fallback panel pointing at the releases page plus the "Install as web app" PWA prompt when no release exists yet or the API call fails.
-- Link the page from the existing install button / settings area so it's reachable.
+5. **Getting the code onto GitHub**
+   - The APK lives in GitHub Releases, not in the repo, but the project itself needs to be synced first: connect via the **+ menu → GitHub → Connect project**, creating/selecting `Ayush1708/imusic`. I can't do that step for you — it's an authorization flow on your account.
 
 ## Technical notes
 
-- You answered the repo as `AP1708`, which is the owner without a repo name. I'll put the target in one constant (`src/lib/android/release.ts`, defaulting to `AP1708/imusic`) — tell me the actual repo name and I'll set it, or edit that one line later.
-- The APK is a thin shell over the published site, so app updates ship instantly on publish; a new APK is only needed for native changes (icons, permissions, Capacitor version).
-- Nothing in this plan touches the database, RLS, or existing playback code.
+- Release lookup uses the public GitHub API (`/repos/{owner}/{repo}/releases/latest`), so the repo must be public or the page will show "no release yet".
+- SHA-256 shown on the download page is computed from the release asset digest / downloaded bytes; no extra metadata file is required.
+- Nothing about signing keys is stored in Lovable — the keystore and its passwords stay on your machine.
 
-## What you'll need to do once
+## Out of scope
 
-1. Run `scripts/generate-keystore.sh` locally (needs Java's `keytool`).
-2. Paste the four values into GitHub → repo Settings → Secrets → Actions.
-3. Push a tag like `v1.0.0` (or run the workflow manually) — the signed APK appears on the Releases page and `/download` picks it up automatically.
+- Building the APK inside Lovable (no Android SDK here) — the build runs on your machine or in GitHub Actions.
+- Play Store submission.
