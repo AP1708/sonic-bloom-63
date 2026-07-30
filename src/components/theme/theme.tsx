@@ -118,15 +118,61 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     void pull();
 
+    // Live sync: watch this user's profile row so a theme change made in
+    // another tab or device lands here instantly.
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const subscribe = async () => {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user.id;
+      if (!userId || cancelled || channel) return;
+
+      channel = supabase
+        .channel(`theme-sync-${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "UPDATE",
+            schema: "public",
+            table: "profiles",
+            filter: `id=eq.${userId}`,
+          },
+          (payload) => {
+            const next = (payload.new as { theme_preference?: string } | null)
+              ?.theme_preference;
+            if (next !== "light" && next !== "dark" && next !== "system") return;
+            if (next === (localStorage.getItem(STORAGE_KEY) as Theme | null)) return;
+            applyLocally(next);
+          },
+        )
+        .subscribe();
+    };
+
+    const teardown = () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+        channel = null;
+      }
+    };
+
+    void subscribe();
+
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") void pull();
+      if (event === "SIGNED_IN") {
+        void pull();
+        teardown();
+        void subscribe();
+      }
+      if (event === "SIGNED_OUT") teardown();
     });
 
     return () => {
       cancelled = true;
+      teardown();
       sub.subscription.unsubscribe();
     };
   }, []);
+
 
   const setTheme = (next: Theme) => {
     applyLocally(next);
