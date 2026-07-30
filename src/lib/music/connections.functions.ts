@@ -12,7 +12,9 @@ import {
   fetchYouTubeChannelLabel,
   googleCredentials,
 } from "@/lib/music/youtube-account.server";
-import { fetchSpotifyProfileName } from "@/lib/music/spotify-account.server";
+import { fetchSpotifyProfileName, spotifyUserSession } from "@/lib/music/spotify-account.server";
+import { exchangeAuthorizationCode } from "@/lib/music/spotify.server";
+
 import {
   importSpotifyLibrary,
   importYouTubeLibrary,
@@ -28,37 +30,50 @@ export const listMyConnections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => listConnectionSummaries(context.userId));
 
-export const linkSpotifyAccount = createServerFn({ method: "POST" })
+/**
+ * Completes the browser PKCE flow server-side.
+ *
+ * The authorization code is exchanged here, the refresh token is stored
+ * encrypted against the signed-in user, and only the short-lived access token
+ * (what the Web Playback SDK needs) is returned to the browser.
+ */
+export const connectSpotifyWithCode = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: {
-      accessToken: string;
-      refreshToken: string | null;
-      expiresAt: number;
-      scope: string;
-    }) => ({
-      accessToken: String(input?.accessToken ?? ""),
-      refreshToken: input?.refreshToken ? String(input.refreshToken) : null,
-      expiresAt: Number(input?.expiresAt ?? 0),
-      scope: String(input?.scope ?? ""),
-    }),
-  )
+  .inputValidator((input: { code: string; codeVerifier: string; redirectUri: string }) => ({
+    code: String(input?.code ?? ""),
+    codeVerifier: String(input?.codeVerifier ?? ""),
+    redirectUri: String(input?.redirectUri ?? ""),
+  }))
   .handler(async ({ data, context }) => {
-    if (!data.accessToken) throw new Error("Missing Spotify access token.");
-    const label = await fetchSpotifyProfileName(data.accessToken).catch(() => null);
+    if (!data.code || !data.codeVerifier) throw new Error("Missing Spotify authorization code.");
+    const tokens = await exchangeAuthorizationCode(data);
+    const expiresAt = Date.now() + tokens.expiresInSec * 1000;
+    const label = await fetchSpotifyProfileName(tokens.accessToken).catch(() => null);
     await saveConnection({
       userId: context.userId,
       provider: "spotify",
       accountLabel: label,
-      scopes: data.scope,
+      scopes: tokens.scope,
       tokens: {
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        expiresAt: data.expiresAt,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt,
       },
     });
-    return { ok: true, accountLabel: label };
+    return { accessToken: tokens.accessToken, expiresAt, accountLabel: label };
   });
+
+/**
+ * Mints a fresh short-lived Spotify access token from the encrypted refresh
+ * token held server-side, so the browser never has to keep one.
+ */
+export const mintSpotifyAccessToken = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const session = await spotifyUserSession(context.userId);
+    return { accessToken: session.accessToken, expiresAt: session.expiresAt };
+  });
+
 
 export const startYouTubeConnect = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
