@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   Loader2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getLatestAndroidRelease } from "@/lib/android/release.functions";
 import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/android/release";
 
@@ -65,10 +67,15 @@ export function ApkDownloadCard({ className }: { className?: string }) {
     }
   };
 
+  const headingId = useId();
+  const statusId = useId();
+
   return (
     <section
-      aria-labelledby="apk-download-heading"
+      aria-labelledby={headingId}
       aria-busy={isPending}
+      aria-live={failed ? "polite" : undefined}
+      aria-atomic={failed ? "true" : undefined}
       className={`surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between ${className ?? ""}`}
     >
       <div className="flex items-start gap-3">
@@ -76,27 +83,29 @@ export function ApkDownloadCard({ className }: { className?: string }) {
           className={`flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-raised ${
             failed ? "text-destructive" : "text-primary"
           }`}
+          aria-hidden="true"
         >
           {failed ? (
-            <AlertTriangle className="size-5" aria-hidden />
+            <AlertTriangle className="size-5" aria-hidden="true" />
           ) : (
-            <Smartphone className="size-5" aria-hidden />
+            <Smartphone className="size-5" aria-hidden="true" />
           )}
         </span>
         <div className="flex flex-col gap-1">
-          <h2 id="apk-download-heading" className="text-base font-medium">
+          <h2 id={headingId} className="text-base font-medium">
             Get IMUSIC for Android
           </h2>
           {isPending ? (
-            <span
-              className="mt-1 h-3 w-44 animate-pulse rounded bg-surface-raised"
-              role="status"
-              aria-label="Checking for the latest release"
-            />
+            <div className="flex flex-col gap-1.5" aria-hidden="true">
+              <Skeleton className="mt-1 h-3 w-44" />
+              <Skeleton className="h-2 w-24" />
+            </div>
           ) : (
             <p
+              id={statusId}
               className={`text-xs ${failed ? "text-destructive" : "text-muted-foreground"}`}
               role={failed ? "alert" : undefined}
+              aria-live={failed ? "assertive" : undefined}
             >
               {failed
                 ? failureMessage
@@ -109,51 +118,74 @@ export function ApkDownloadCard({ className }: { className?: string }) {
                     : "Signed APK published on GitHub Releases."}
             </p>
           )}
+          {isPending && (
+            <span className="sr-only" role="status">
+              Checking for the latest release
+            </span>
+          )}
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
         {isPending ? (
-          <span className="flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+          <Button
+            variant="outline"
+            size="default"
+            disabled
+            aria-label="Loading release information"
+            aria-describedby={statusId}
+            className="h-10"
+          >
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             Loading…
-          </span>
+          </Button>
         ) : failed ? (
-          <button
-            type="button"
+          <Button
             onClick={() => void refetch()}
             disabled={isFetching}
-            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+            aria-label={isFetching ? "Retrying release lookup" : "Retry loading release"}
+            aria-describedby={statusId}
+            className="h-10"
           >
-            <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} aria-hidden />
+            <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} aria-hidden="true" />
             {isFetching ? "Retrying…" : "Retry"}
-          </button>
+          </Button>
         ) : data?.status === "ok" ? (
-          <button
-            type="button"
+          <Button
             onClick={() => handleDownload(data.release.apkUrl)}
-            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+            aria-label={`Download IMUSIC version ${data.release.version} APK`}
+            aria-describedby={statusId}
+            className="h-10"
           >
-            <Download className="size-4" aria-hidden />
+            <Download className="size-4" aria-hidden="true" />
             Download APK
-          </button>
+          </Button>
         ) : (
-          <a
-            href={ANDROID_RELEASES_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-border px-4 text-sm transition-colors hover:bg-surface-raised"
+          <Button
+            variant="outline"
+            asChild
+            aria-label="View all releases on GitHub"
+            aria-describedby={statusId}
+            className="h-10"
           >
-            <ExternalLink className="size-4" aria-hidden />
-            View releases
-          </a>
+            <a
+              href={ANDROID_RELEASES_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              <ExternalLink className="size-4" aria-hidden="true" />
+              View releases
+            </a>
+          </Button>
         )}
-        <Link
-          to="/download"
-          className="flex h-10 items-center rounded-lg border border-border px-3 text-sm transition-colors hover:bg-surface-raised"
+        <Button
+          variant="outline"
+          asChild
+          aria-label="More Android download details"
+          className="h-10"
         >
-          Details
-        </Link>
+          <Link to="/download">Details</Link>
+        </Button>
       </div>
     </section>
   );
