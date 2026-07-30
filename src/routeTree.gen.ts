@@ -25,6 +25,7 @@ import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authenticated/downloads'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedPlaylistPlaylistIdRouteImport } from './routes/_authenticated/playlist.$playlistId'
+import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as ApiPublicHooksYoutubeKeyHealthRouteImport } from './routes/api/public/hooks/youtube-key-health'
 
@@ -108,6 +109,11 @@ const AuthenticatedPlaylistPlaylistIdRoute =
     path: '/playlist/$playlistId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
+  id: '/.lovable/oauth/consent',
+  path: '/.lovable/oauth/consent',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LovableEmailTransactionalPreviewRoute =
   LovableEmailTransactionalPreviewRouteImport.update({
     id: '/lovable/email/transactional/preview',
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -155,6 +162,7 @@ export interface FileRoutesByTo {
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists': typeof ArtistsIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -176,6 +184,7 @@ export interface FileRoutesById {
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
+  '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
     | '/spotify/callback'
     | '/youtube/callback'
     | '/artists/'
+    | '/.lovable/oauth/consent'
     | '/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
     | '/lovable/email/transactional/preview'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/spotify/callback'
     | '/youtube/callback'
     | '/artists'
+    | '/.lovable/oauth/consent'
     | '/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
     | '/lovable/email/transactional/preview'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/spotify/callback'
     | '/youtube/callback'
     | '/artists/'
+    | '/.lovable/oauth/consent'
     | '/_authenticated/playlist/$playlistId'
     | '/api/public/hooks/youtube-key-health'
     | '/lovable/email/transactional/preview'
@@ -253,6 +265,7 @@ export interface RootRouteChildren {
   SpotifyCallbackRoute: typeof SpotifyCallbackRoute
   YoutubeCallbackRoute: typeof YoutubeCallbackRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
+  DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   ApiPublicHooksYoutubeKeyHealthRoute: typeof ApiPublicHooksYoutubeKeyHealthRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
@@ -371,6 +384,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlaylistPlaylistIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/.lovable/oauth/consent': {
+      id: '/.lovable/oauth/consent'
+      path: '/.lovable/oauth/consent'
+      fullPath: '/.lovable/oauth/consent'
+      preLoaderRoute: typeof DotlovableOauthConsentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/transactional/preview': {
       id: '/lovable/email/transactional/preview'
       path: '/lovable/email/transactional/preview'
@@ -419,6 +439,7 @@ const rootRouteChildren: RootRouteChildren = {
   SpotifyCallbackRoute: SpotifyCallbackRoute,
   YoutubeCallbackRoute: YoutubeCallbackRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
+  DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   ApiPublicHooksYoutubeKeyHealthRoute: ApiPublicHooksYoutubeKeyHealthRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }
