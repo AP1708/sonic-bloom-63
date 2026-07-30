@@ -1,23 +1,98 @@
 /**
- * Per-session feed seed.
+ * Feed seed — controls how the home feed is sampled and which discovery
+ * queries run.
  *
- * The home feed should look different every time the app is opened, but stay
- * stable while you are using it (so rails don't reshuffle on every render).
- * A seed is generated once per browser session and reused from sessionStorage.
+ * The feed should look different every time the app is opened, so the seed is
+ * rotated on a cold open and again whenever the app comes back to the
+ * foreground after being away for a while. It is persisted in localStorage so
+ * a reload or PWA restart continues from a known value rather than flashing a
+ * different feed mid-session.
  */
 
+import { useEffect, useState } from "react";
+
 const SEED_KEY = "feed-seed";
+const HIDDEN_KEY = "feed-seed-hidden-at";
 
-let cached: number | null = null;
+/** Returning after this long counts as "opening the app again". */
+const REOPEN_AFTER_MS = 20 * 60 * 1000;
 
+/** Stable value used during SSR so the server and first client render agree. */
+const SSR_SEED = 1;
+
+let current = SSR_SEED;
+let started = false;
+const listeners = new Set<(seed: number) => void>();
+
+function mint(): number {
+  return Math.floor(Math.random() * 1_000_000) + 1;
+}
+
+function emit(seed: number) {
+  current = seed;
+  for (const listener of listeners) listener(seed);
+}
+
+/** Force a new seed (manual refresh button, or a fresh open). */
+export function rotateFeedSeed(): number {
+  const seed = mint();
+  try {
+    window.localStorage.setItem(SEED_KEY, String(seed));
+    window.localStorage.removeItem(HIDDEN_KEY);
+  } catch {
+    /* storage can be unavailable in private modes — the seed still works in memory */
+  }
+  emit(seed);
+  return seed;
+}
+
+/** Current seed without subscribing. */
 export function feedSeed(): number {
-  if (cached !== null) return cached;
-  if (typeof window === "undefined") return 1;
-  const stored = window.sessionStorage.getItem(SEED_KEY);
-  const parsed = stored ? Number(stored) : NaN;
-  const seed = Number.isFinite(parsed) && parsed > 0 ? parsed : Math.floor(Math.random() * 1_000_000) + 1;
-  window.sessionStorage.setItem(SEED_KEY, String(seed));
-  cached = seed;
+  return current;
+}
+
+function start() {
+  if (started || typeof window === "undefined") return;
+  started = true;
+
+  // Every fresh page load is an "open", so the feed always starts different.
+  rotateFeedSeed();
+
+  // Coming back to the foreground after a long time away counts as reopening.
+  document.addEventListener("visibilitychange", () => {
+    try {
+      if (document.visibilityState !== "visible") {
+        window.localStorage.setItem(HIDDEN_KEY, String(Date.now()));
+        return;
+      }
+      const hiddenAt = Number(window.localStorage.getItem(HIDDEN_KEY)) || 0;
+      window.localStorage.removeItem(HIDDEN_KEY);
+      if (hiddenAt && Date.now() - hiddenAt > REOPEN_AFTER_MS) rotateFeedSeed();
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
+
+
+/**
+ * Subscribe to the feed seed. Returns the SSR seed on the server and during
+ * hydration, then the rotated value once mounted, so markup stays consistent.
+ */
+export function useFeedSeed(): number {
+  const [seed, setSeed] = useState(SSR_SEED);
+
+  useEffect(() => {
+    start();
+    setSeed(current);
+    const listener = (next: number) => setSeed(next);
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+
   return seed;
 }
 

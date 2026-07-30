@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Play, Shuffle } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Play, RefreshCw, Shuffle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Carousel, SectionHeader } from "@/components/music/carousel";
 import { ChipRow, MOODS } from "@/components/music/chip-row";
@@ -13,7 +13,8 @@ import { usePlayer } from "@/components/player/player-provider";
 import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/catalog";
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
-import { feedSeed, seededSample, seededShuffle } from "@/lib/music/feed-seed";
+import { rotateFeedSeed, seededSample, seededShuffle, useFeedSeed } from "@/lib/music/feed-seed";
+import { resetDiscoveryStore, useAccumulatedDiscovery } from "@/lib/music/feed-store";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
@@ -21,6 +22,7 @@ import { useSession } from "@/hooks/use-session";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { greeting } from "@/lib/format";
 import type { Track } from "@/lib/music/types";
+
 
 
 export const Route = createFileRoute("/")({
@@ -65,8 +67,8 @@ function HomePage() {
   const [mood, setMood] = useState("all");
   const keywords = MOODS.find((m) => m.id === mood)?.keywords ?? [];
 
-  /** Rotates each time the app is opened, so the feed is never the same twice. */
-  const seed = feedSeed();
+  /** Rotates on every app open (and after a long time away). */
+  const seed = useFeedSeed();
   /** Seeded pick helper — `salt` keeps each rail distinct within a session. */
   const sample = useMemo(
     () =>
@@ -80,8 +82,18 @@ function HomePage() {
     [history],
   );
 
+  // A different mood is a different feed, so accumulated rails start over.
+  useEffect(() => {
+    resetDiscoveryStore();
+  }, [mood]);
+
   /** Live suggestions from the YouTube Music catalog — new songs and artists. */
-  const { data: discovery, isLoading: discoveryLoading } = useQuery({
+  const {
+    data: discoveryBatch,
+    isLoading: discoveryLoading,
+    isFetching: discoveryFetching,
+    refetch: refetchDiscovery,
+  } = useQuery({
     queryKey: ["discovery-feed", seed, mood, affinityArtists.join("|")],
     queryFn: () =>
       getDiscoveryFeed({
@@ -91,9 +103,23 @@ function HomePage() {
           mood: MOODS.find((m) => m.id === mood)?.label.toLowerCase() ?? "",
         },
       }),
-    staleTime: 5 * 60 * 1000,
+    // The seed already gates how often new results appear; within a seed the
+    // response is stable, but focus/mount refetches let a rotation land fast.
+    staleTime: 60 * 1000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
     retry: 1,
   });
+
+  /** Batches merge into a growing feed instead of replacing it. */
+  const discovery = useAccumulatedDiscovery(discoveryBatch);
+
+  const refreshFeed = () => {
+    rotateFeedSeed();
+    void refetchDiscovery();
+  };
+
 
   const pool = useMemo<Track[]>(() => {
     const base = catalog?.tracks?.length ? catalog.tracks : DEMO_TRACKS;
@@ -176,10 +202,21 @@ function HomePage() {
   const extraSections = useMemo(() => {
     const sections: { id: string; caption: string; title: string; tracks: Track[] }[] = [];
 
+    // Songs that arrived with the latest open get their own rail up front.
+    if (discovery.batches > 1 && discovery.fresh.length >= 4) {
+      sections.push({
+        id: `fresh-batch-${discovery.batches}`,
+        caption: "Added since you were last here",
+        title: "Fresh for you",
+        tracks: discovery.fresh,
+      });
+    }
+
     // Extra discovery rails beyond the three shown up top.
-    (discovery?.rails ?? []).slice(3).forEach((rail) => {
+    discovery.rails.slice(3).forEach((rail) => {
       sections.push({ id: rail.id, caption: rail.caption, title: rail.title, tracks: rail.tracks });
     });
+
 
     // Discovery artists become their own rails so scrolling keeps introducing
     // unfamiliar names, not just archive deep cuts.
@@ -232,7 +269,7 @@ function HomePage() {
     initialPages: 1,
   });
   const visibleExtras = extraSections.slice(0, pages * SECTIONS_PER_PAGE);
-  const topRails = (discovery?.rails ?? []).slice(0, 3);
+  const topRails = discovery.rails.slice(0, 3);
 
 
   return (
@@ -299,6 +336,25 @@ function HomePage() {
         )}
 
         {/* Fresh suggestions pulled live from YouTube Music on every open. */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {discoveryFetching
+              ? "Refreshing your picks…"
+              : discovery.batches > 1 && discovery.fresh.length > 0
+                ? `${discovery.fresh.length} new song${discovery.fresh.length === 1 ? "" : "s"} added to your feed`
+                : "Recommendations refresh each time you open the app"}
+          </p>
+          <button
+            type="button"
+            onClick={refreshFeed}
+            disabled={discoveryFetching}
+            className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={`size-3.5 ${discoveryFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+
         {discoveryLoading && topRails.length === 0 && (
           <section className="flex flex-col gap-4" aria-busy>
             <SectionHeader caption="Fetching today's picks" title="New releases" />
@@ -312,6 +368,7 @@ function HomePage() {
             </div>
           </section>
         )}
+
 
         {topRails.map((rail) => (
           <section key={rail.id} className="flex flex-col gap-4">

@@ -1,32 +1,41 @@
 ## Goal
 
-Make the home feed feel like YouTube Music end to end, and make it genuinely fresh: new song suggestions every time you open the app, plus discovery rails for new songs and new artists — not just re-shuffled archive tracks.
+Every time you open (or return to) the app, the home discovery rails pull a fresh batch from YouTube Music, and new song recommendations are **added** to the feed rather than swapping the whole thing out.
 
-## Current state (verified)
+## Current behaviour
 
-`src/routes/index.tsx` already has YTM-style pieces (mood chips, hero, Quick picks grid, carousels, round artist cards, infinite scroll). But every rail is sampled deterministically from the local public-domain archive catalog (`full-catalog.ts` / `DEMO_TRACKS`) with fixed offsets, so the feed looks identical on every open and contains no genuinely new music. YouTube Music search (`youtube.functions.ts`, `musicOnly`) is only used for playback resolution and lyrics, never for discovery.
+- `src/lib/music/feed-seed.ts` stores one seed per browser session in `sessionStorage`. A reopened PWA/tab keeps the same tab session, so the seed — and therefore the rails — stay identical.
+- `src/routes/index.tsx` fetches discovery with a 5-minute `staleTime` and renders exactly the three returned rails; nothing accumulates over time.
 
-## What to build
+## Changes
 
-### 1. Fresh-on-every-open rotation
-- Add `src/lib/music/feed-seed.ts`: a per-session seed (rotates each app open, stored in `sessionStorage`) plus a seeded shuffle helper.
-- Replace the fixed `sample(pool, n, offset)` offsets with seeded picks so hero, Quick picks, Trending and Deep cuts differ every session while staying stable during that session (no reshuffle on re-render).
+### 1. Seed rotates per app open
 
-### 2. Live discovery from YouTube Music
-- New `src/lib/music/discovery.functions.ts` server function `getDiscoveryFeed`, calling the existing YTM `musicOnly` search with a rotating set of discovery queries (new Hindi/Punjabi/Tamil/Telugu releases, "new songs 2026", trending India, plus taste-seeded queries from the user's top artists), de-duplicating by track id.
-- Returns grouped rails: **New releases**, **Trending now**, **Fresh finds for you**, and **New artists** (artists extracted from the returned tracks that aren't in listening history or the local catalog).
-- Server-side cached like the existing YTM helpers (short TTL, e.g. 15–30 min, keyed by query set) so quota is protected; the per-session seed picks a different query slice each open.
+Rework `feed-seed.ts`:
+- Store the seed plus a `lastOpenedAt` timestamp in `localStorage` (so it survives reload/PWA restart).
+- Mint a **new** seed when the app opens cold, or when the page becomes visible again after being backgrounded longer than a threshold (~20 minutes).
+- Expose `useFeedSeed()`: returns the current seed and re-renders subscribers when it rotates, wiring a `visibilitychange` listener so returning to the app rotates without a manual reload.
 
-### 3. Feed wiring
-- Home fetches discovery via TanStack Query (`staleTime` a few minutes, seeded key) and renders the new rails high in the feed, right after the hero/Quick picks: New releases → Fresh finds for you → Speed dial/Listen again → Mixed for you → Trending → **New artists for you** (round artist cards) → Recommended albums → infinite extras.
-- Graceful degradation: if YTM search returns nothing (quota/offline), those rails are hidden and the archive-based rails carry the feed, exactly as today.
-- Infinite scroll gains discovery pages too, so scrolling keeps introducing unfamiliar artists rather than only archive deep cuts.
+### 2. Background refresh of discovery
 
-### 4. YTM layout polish
-- Tighten card/rail sizing, captions and spacing to match YouTube Music (2-line card titles with subtitle caption, consistent rail gaps, header "More" affordance on hover), and make the mood chip row filter discovery queries too, not just the local pool.
+In the home route:
+- Key the discovery query on the live seed, with `refetchOnWindowFocus`, `refetchOnMount: "always"`, and a short `staleTime` so a rotation triggers a real fetch.
+- Keep the previously shown rails visible while the new batch loads (`placeholderData` keep-previous), with a subtle "Refreshing picks" indicator instead of a skeleton flash.
+
+### 3. Accumulate new recommendations
+
+Add a small accumulator (`src/lib/music/feed-store.ts`):
+- Holds recommendations already shown this session, keyed by rail id, deduped by track id and title|artist.
+- Each discovery response merges in: **new tracks are prepended** to their rail, previously seen ones remain further along, so the rail grows instead of resetting.
+- Cap each rail (~40 tracks) and the total pool so memory stays bounded.
+- Genuinely new batches also spawn an extra "Fresh for you · just now" rail at the top of the infinite-scroll extras, and any newly discovered artists get appended to the "New artists for you" avatar rail.
+
+### 4. Manual refresh
+
+Add a small refresh control on the discovery section header that rotates the seed and refetches on demand.
 
 ## Technical notes
 
-- Discovery tracks are normal `Track` objects with `source: "youtube"`, so play/queue/like/download all work through the existing player and `TrackMenu` with no changes.
-- New-artist detection is client-side from returned track metadata plus `topArtists()` history, so no schema change is needed.
-- Analytics: tag discovery fetches with the existing analytics events so quota fallbacks stay visible in the Insights tab.
+- Seed rotation logic lives in `feed-seed.ts` and is read via a hook so `HomePage` stays declarative; SSR keeps returning a fixed seed to avoid hydration mismatch, with rotation applied after mount.
+- Accumulation happens client-side; `discovery.functions.ts` stays unchanged, still hitting the cached `youtubeMusicSearch` path so extra opens do not multiply upstream quota usage.
+- Files touched: `src/lib/music/feed-seed.ts`, new `src/lib/music/feed-store.ts`, `src/routes/index.tsx`.
