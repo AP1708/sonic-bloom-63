@@ -7,6 +7,7 @@ import { SidePanel } from "@/components/player/side-panel";
 import { ConnectionsMenu } from "@/components/music/connections-menu";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SettingsMenu } from "@/components/settings/settings-menu";
 import { useTheme } from "@/components/theme/theme";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
