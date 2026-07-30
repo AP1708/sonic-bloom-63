@@ -11,7 +11,7 @@ import { QuickPicksGrid } from "@/components/music/quick-picks-grid";
 import { Artwork } from "@/components/music/artwork";
 import { usePlayer } from "@/components/player/player-provider";
 import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/catalog";
-import { artistSlug, loadFullCatalog } from "@/lib/music/full-catalog";
+import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
@@ -121,7 +121,7 @@ function HomePage() {
       ? affinity.map((entry) => entry.artist)
       : (catalog?.artists ?? []).slice(0, 6).map((artist) => artist.name);
     return seeds.slice(0, 6).map((name) => {
-      const bucket = catalog?.byArtist.get(artistSlug(name)) ?? [];
+      const bucket = artistTracks(catalog, artistSlug(name));
       const tracks = bucket.length ? sample(bucket, 30, 5) : sample(pool, 30, 11);
       return { id: `mix-${artistSlug(name)}`, title: `${name} radio`, subtitle: "Mix · Sonance", tracks };
     });
@@ -134,7 +134,7 @@ function HomePage() {
     const catalogArtists = (catalog?.artists ?? []).filter((artist) => !used.has(artist.id));
 
     catalogArtists.forEach((artist, index) => {
-      const bucket = catalog?.byArtist.get(artist.id) ?? [];
+      const bucket = artistTracks(catalog, artist.id);
       const tracks = bucket.length >= 4 ? sample(bucket, 16, index) : [];
       if (tracks.length < 4) return;
       sections.push({

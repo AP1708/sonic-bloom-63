@@ -1,6 +1,6 @@
 import type { Track } from "@/lib/music/types";
 import { track as trackEvent } from "@/lib/analytics/events";
-import { loadFullCatalog, artistSlug } from "@/lib/music/full-catalog";
+import { loadFullCatalog, artistSlug, artistTracks } from "@/lib/music/full-catalog";
 import { findRelatedTracks } from "@/lib/music/related";
 import { artistAffinityScore, topArtists, topTracks, type HistoryEntry } from "@/lib/music/taste";
 import {
@@ -102,7 +102,7 @@ async function buildCandidates(history: HistoryEntry[], liked: Track[]): Promise
     try {
       const catalog = await loadFullCatalog();
       for (const affinity of affinities) {
-        const bucket = catalog.byArtist.get(artistSlug(affinity.artist));
+        const bucket = artistTracks(catalog, artistSlug(affinity.artist));
         if (bucket) candidates.push(...bucket.slice(0, 20));
       }
     } catch {
