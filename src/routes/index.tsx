@@ -16,6 +16,7 @@ import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
 import { useSession } from "@/hooks/use-session";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { greeting } from "@/lib/format";
 import type { Track } from "@/lib/music/types";
 
@@ -125,6 +126,44 @@ function HomePage() {
       return { id: `mix-${artistSlug(name)}`, title: `${name} radio`, subtitle: "Mix · Sonance", tracks };
     });
   }, [history, catalog, pool]);
+
+  /** Endless rails generated from the catalog, revealed as the user scrolls. */
+  const extraSections = useMemo(() => {
+    const used = new Set(artists.slice(0, 8).map((artist) => artist.id));
+    const sections: { id: string; caption: string; title: string; tracks: Track[] }[] = [];
+    const catalogArtists = (catalog?.artists ?? []).filter((artist) => !used.has(artist.id));
+
+    catalogArtists.forEach((artist, index) => {
+      const bucket = catalog?.byArtist.get(artist.id) ?? [];
+      const tracks = bucket.length >= 4 ? sample(bucket, 16, index) : [];
+      if (tracks.length < 4) return;
+      sections.push({
+        id: `artist-rail-${artist.id}`,
+        caption: index % 2 === 0 ? "More from the archive" : "Because you explore Indian classics",
+        title: artist.name,
+        tracks,
+      });
+    });
+
+    for (let i = 0; sections.length < 24 && i < 24; i += 1) {
+      const tracks = sample(pool, 16, 131 + i * 37);
+      if (tracks.length < 4) break;
+      sections.push({
+        id: `deep-cuts-${i}`,
+        caption: "Keep listening",
+        title: `Deep cuts, vol. ${i + 1}`,
+        tracks,
+      });
+    }
+    return sections;
+  }, [artists, catalog, pool]);
+
+  const SECTIONS_PER_PAGE = 2;
+  const { pages, hasMore, loading, sentinelRef } = useInfiniteScroll({
+    totalPages: Math.ceil(extraSections.length / SECTIONS_PER_PAGE),
+    initialPages: 1,
+  });
+  const visibleExtras = extraSections.slice(0, pages * SECTIONS_PER_PAGE);
 
   return (
     <AppShell>
@@ -286,6 +325,34 @@ function HomePage() {
             })}
           </Carousel>
         </section>
+
+        {visibleExtras.map((section) => (
+          <section key={section.id} className="flex flex-col gap-4">
+            <SectionHeader caption={section.caption} title={section.title} />
+            <Carousel>
+              {section.tracks.map((track) => (
+                <SongCard
+                  key={`${section.id}-${track.id}`}
+                  track={track}
+                  playing={player.isPlaying && player.current?.id === track.id}
+                  onPlay={() => player.playTrack(track, section.tracks)}
+                />
+              ))}
+            </Carousel>
+          </section>
+        ))}
+
+        <div ref={sentinelRef} aria-hidden className="h-px" />
+
+        {hasMore ? (
+          <p className="pb-6 text-center text-xs text-muted-foreground" role="status">
+            {loading ? "Loading more music…" : "Scroll for more"}
+          </p>
+        ) : (
+          visibleExtras.length > 0 && (
+            <p className="pb-6 text-center text-xs text-muted-foreground">You've reached the end</p>
+          )
+        )}
       </div>
     </AppShell>
   );
