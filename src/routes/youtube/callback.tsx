@@ -6,9 +6,9 @@ import { completeYouTubeConnect } from "@/lib/music/connections.functions";
 export const Route = createFileRoute("/youtube/callback")({
   head: () => ({
     meta: [
-      { title: "Connecting YouTube Music — Sonance" },
+      { title: "Connecting YouTube Music — IMUSIC" },
       { name: "description", content: "Finishing the secure YouTube Music account connection." },
-      { property: "og:title", content: "Connecting YouTube Music — Sonance" },
+      { property: "og:title", content: "Connecting YouTube Music — IMUSIC" },
       { property: "og:description", content: "Finishing the secure YouTube Music account connection." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -69,7 +69,7 @@ function YouTubeCallback() {
               onClick={() => navigate({ to: "/", replace: true })}
               className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground"
             >
-              Back to Sonance
+              Back to IMUSIC
             </button>
           </>
         ) : (

@@ -14,10 +14,10 @@ export const Route = createFileRoute("/auth")({
   validateSearch: searchSchema,
   head: () => ({
     meta: [
-      { title: "Sign in — Sonance" },
-      { name: "description", content: "Sign in to sync your Sonance playlists, liked songs, and queue." },
-      { property: "og:title", content: "Sign in — Sonance" },
-      { property: "og:description", content: "Access your Sonance library across devices." },
+      { title: "Sign in — IMUSIC" },
+      { name: "description", content: "Sign in to sync your IMUSIC playlists, liked songs, and queue." },
+      { property: "og:title", content: "Sign in — IMUSIC" },
+      { property: "og:description", content: "Access your IMUSIC library across devices." },
     ],
   }),
   component: AuthPage,
@@ -83,7 +83,7 @@ function AuthPage() {
       <div className="w-full max-w-sm">
         <Link to="/" className="mb-8 flex items-center justify-center gap-2">
           <Music4 className="size-5 text-primary" />
-          <span className="font-display text-lg tracking-tight">SONANCE</span>
+          <span className="font-display text-lg tracking-tight">IMUSIC</span>
         </Link>
 
         <div className="surface-panel flex flex-col gap-6 p-6">
@@ -152,7 +152,7 @@ function AuthPage() {
           </form>
 
           <p className="text-center text-xs text-muted-foreground">
-            {mode === "signin" ? "New to Sonance?" : "Already have an account?"}{" "}
+            {mode === "signin" ? "New to IMUSIC?" : "Already have an account?"}{" "}
             <button
               type="button"
               onClick={() => setMode(mode === "signin" ? "signup" : "signin")}

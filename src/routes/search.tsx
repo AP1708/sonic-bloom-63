@@ -14,12 +14,12 @@ import type { MusicSource } from "@/lib/music/types";
 export const Route = createFileRoute("/search")({
   head: () => ({
     meta: [
-      { title: "Search — Sonance" },
+      { title: "Search — IMUSIC" },
       {
         name: "description",
         content: "Search tracks across Spotify and YouTube Music at once and queue them instantly.",
       },
-      { property: "og:title", content: "Search across Spotify and YouTube Music — Sonance" },
+      { property: "og:title", content: "Search across Spotify and YouTube Music — IMUSIC" },
       {
         property: "og:description",
         content: "One search box for both music platforms, with graceful fallbacks.",

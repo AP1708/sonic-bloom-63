@@ -14,7 +14,7 @@ import {
   youtubeAccessToken,
 } from "./youtube-account.server";
 
-/** Server-only import/export of a listener's provider library into Sonance. */
+/** Server-only import/export of a listener's provider library into IMUSIC. */
 
 export interface ImportSummary {
   playlists: number;
@@ -194,7 +194,7 @@ export async function importYouTubeLibrary(userId: string): Promise<ImportSummar
   return { playlists: playlists.length, tracks: trackCount, liked };
 }
 
-/** Pushes a Sonance playlist to the listener's YouTube account. */
+/** Pushes a IMUSIC playlist to the listener's YouTube account. */
 export async function pushPlaylistToYouTube(
   userId: string,
   playlistId: string,

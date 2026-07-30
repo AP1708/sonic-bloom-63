@@ -6,13 +6,13 @@ import { MotionSettings } from "@/components/settings/motion-settings";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Sonance" },
+      { title: "Settings — IMUSIC" },
       {
         name: "description",
         content:
-          "Tune Sonance: pick your theme and control how new discoveries animate into your home feed.",
+          "Tune IMUSIC: pick your theme and control how new discoveries animate into your home feed.",
       },
-      { property: "og:title", content: "Settings — Sonance" },
+      { property: "og:title", content: "Settings — IMUSIC" },
       {
         property: "og:description",
         content: "Theme and discovery motion controls, synced to your account.",

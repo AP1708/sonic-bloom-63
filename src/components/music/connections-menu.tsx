@@ -183,7 +183,7 @@ export function ConnectionsMenu({ className }: { className?: string }) {
         onDisconnect={() => disconnect.mutate("youtube")}
         note={
           youtubeConfig.data?.configured
-            ? "Playlists sync both ways — you can push Sonance playlists back to YouTube Music."
+            ? "Playlists sync both ways — you can push IMUSIC playlists back to YouTube Music."
             : "YouTube Music account linking isn't configured yet."
         }
       />
