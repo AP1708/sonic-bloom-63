@@ -20,13 +20,27 @@ import { isMeteredConnection, type SmartDownloadSettings } from "./settings";
  * songs that fell out of favour. Manual downloads are never removed here.
  */
 
+export type SmartItemStatus = "queued" | "downloading" | "ready" | "failed" | "pinned";
+
+export interface SmartDownloadItem {
+  id: string;
+  title: string;
+  artist: string;
+  status: SmartItemStatus;
+  /** Bytes fetched so far, and the expected total when the server reports one. */
+  received: number;
+  total: number;
+}
+
 export interface SmartDownloadProgress {
   phase: "idle" | "planning" | "downloading" | "pruning" | "done" | "skipped";
   completed: number;
   total: number;
   currentTitle?: string;
   message?: string;
+  items?: SmartDownloadItem[];
 }
+
 
 export interface SmartDownloadInput {
   history: HistoryEntry[];
