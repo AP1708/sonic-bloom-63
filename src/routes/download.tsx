@@ -51,13 +51,37 @@ function DownloadPage() {
     staleTime: 10 * 60 * 1000,
   });
   const release = data?.status === "ok" ? data.release : null;
+
+  // Detect the phone's CPU architecture so the matching (smaller) build is preselected.
+  const [detectedAbi, setDetectedAbi] = useState<Abi | null>(null);
+  const [chosenAbi, setChosenAbi] = useState<Abi | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void detectAbi().then((abi) => {
+      if (!cancelled) setDetectedAbi(abi);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const variants = release?.variants ?? [];
+  const recommended = detectedAbi ? pickVariant(variants, detectedAbi) : null;
+  const selected =
+    (chosenAbi ? variants.find((variant) => variant.abi === chosenAbi) : null) ??
+    recommended ??
+    (release
+      ? { abi: "universal" as Abi, apkUrl: release.apkUrl, apkName: release.apkName, sizeBytes: release.sizeBytes }
+      : null);
+
   const download = useApkDownload(
-    release
+    release && selected
       ? {
-          version: release.version,
-          apkUrl: release.apkUrl,
-          apkName: release.apkName,
-          sizeBytes: release.sizeBytes,
+          // Key the resumable store per build so switching variants keeps both.
+          version: `${release.version}-${selected.abi}`,
+          apkUrl: selected.apkUrl,
+          apkName: selected.apkName,
+          sizeBytes: selected.sizeBytes,
         }
       : null,
   );
@@ -92,9 +116,52 @@ function DownloadPage() {
                   Released {formatReleaseDate(data.release.publishedAt)}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {formatBytes(data.release.sizeBytes)}
+                  {formatBytes(selected?.sizeBytes ?? data.release.sizeBytes)}
                 </span>
+                {selected ? (
+                  <span className="text-xs text-muted-foreground">{ABI_LABEL[selected.abi]}</span>
+                ) : null}
               </div>
+
+              {variants.length > 1 ? (
+                <fieldset className="flex flex-col gap-3" disabled={download.active}>
+                  <legend className="text-xs text-muted-foreground">
+                    {recommended
+                      ? `Matched to your device: ${ABI_LABEL[recommended.abi]}`
+                      : "Choose the build for your device"}
+                  </legend>
+                  <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Android build">
+                    {variants.map((variant) => {
+                      const active = selected?.abi === variant.abi;
+                      return (
+                        <button
+                          key={variant.abi}
+                          type="button"
+                          role="radio"
+                          aria-checked={active}
+                          onClick={() => setChosenAbi(variant.abi)}
+                          className={`flex flex-col items-start gap-0.5 rounded-lg border p-3 text-left transition-colors ${
+                            active ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                          }`}
+                        >
+                          <span className="flex w-full items-center justify-between gap-2 text-sm">
+                            {ABI_LABEL[variant.abi]}
+                            {recommended?.abi === variant.abi ? (
+                              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] text-primary">
+                                Recommended
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatBytes(variant.sizeBytes)} · {ABI_HINT[variant.abi]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
+
 
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-3">
