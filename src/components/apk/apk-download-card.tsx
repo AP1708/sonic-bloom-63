@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getLatestAndroidRelease } from "@/lib/android/release.functions";
-import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/android/release";
+import { getLatestAndroidRelease } from "@/lib/apk/release.functions";
+import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/apk/release";
 import { useApkDownload } from "@/hooks/use-apk-download";
 
 /**
