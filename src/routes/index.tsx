@@ -14,7 +14,12 @@ import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
 import { rotateFeedSeed, seededSample, seededShuffle, useFeedSeed } from "@/lib/music/feed-seed";
-import { resetDiscoveryStore, useAccumulatedDiscovery } from "@/lib/music/feed-store";
+import {
+  resetDiscoveryStore,
+  trackKey,
+  useAccumulatedDiscovery,
+  useFreshMarkers,
+} from "@/lib/music/feed-store";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
