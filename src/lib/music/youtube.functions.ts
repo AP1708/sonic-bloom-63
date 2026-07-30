@@ -94,7 +94,7 @@ export const searchYouTube = createServerFn({ method: "GET" })
 
     if (!data.query.trim()) return { tracks: [], strategy: "none", reason: "empty_query" };
 
-    const key = cacheKey(data.query, data.limit);
+    const key = `${cacheKey(data.query, data.limit)}${data.musicOnly ? "|music" : ""}`;
     const cached = readCache(key);
     if (cached) return { tracks: cached, strategy: "cache" };
 
@@ -114,7 +114,13 @@ export const searchYouTube = createServerFn({ method: "GET" })
         console.error(`YouTube Music search failed: ${(error as Error).message}`);
       }
 
+      // Music-only callers never want video-upload fallbacks.
+      if (data.musicOnly) {
+        return { tracks: [], strategy: "none" as const, reason: musicFailure ?? "ytm_no_results" };
+      }
+
       // No project key configured at all: keyless web search still works.
+
       if (!apiKeys().length) {
         try {
           const tracks = await innertubeSearch(data.query, data.limit);
