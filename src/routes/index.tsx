@@ -269,7 +269,7 @@ function HomePage() {
     initialPages: 1,
   });
   const visibleExtras = extraSections.slice(0, pages * SECTIONS_PER_PAGE);
-  const topRails = (discovery?.rails ?? []).slice(0, 3);
+  const topRails = discovery.rails.slice(0, 3);
 
 
   return (
