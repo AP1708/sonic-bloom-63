@@ -336,6 +336,25 @@ function HomePage() {
         )}
 
         {/* Fresh suggestions pulled live from YouTube Music on every open. */}
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            {discoveryFetching
+              ? "Refreshing your picks…"
+              : discovery.batches > 1 && discovery.fresh.length > 0
+                ? `${discovery.fresh.length} new song${discovery.fresh.length === 1 ? "" : "s"} added to your feed`
+                : "Recommendations refresh each time you open the app"}
+          </p>
+          <button
+            type="button"
+            onClick={refreshFeed}
+            disabled={discoveryFetching}
+            className="flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            <RefreshCw className={`size-3.5 ${discoveryFetching ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
+        </div>
+
         {discoveryLoading && topRails.length === 0 && (
           <section className="flex flex-col gap-4" aria-busy>
             <SectionHeader caption="Fetching today's picks" title="New releases" />
@@ -349,6 +368,7 @@ function HomePage() {
             </div>
           </section>
         )}
+
 
         {topRails.map((rail) => (
           <section key={rail.id} className="flex flex-col gap-4">
