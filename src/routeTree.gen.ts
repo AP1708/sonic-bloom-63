@@ -28,6 +28,7 @@ import { Route as AuthenticatedDownloadsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as ApiPublicApkRouteImport } from './routes/api/public/apk'
 import { Route as AuthenticatedPlaylistPlaylistIdRouteImport } from './routes/_authenticated/playlist.$playlistId'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -130,6 +131,11 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicApkRoute = ApiPublicApkRouteImport.update({
+  id: '/api/public/apk',
+  path: '/api/public/apk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedPlaylistPlaylistIdRoute =
   AuthenticatedPlaylistPlaylistIdRouteImport.update({
     id: '/playlist/$playlistId',
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
+  '/api/public/apk': typeof ApiPublicApkRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -207,6 +214,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
+  '/api/public/apk': typeof ApiPublicApkRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/playlist/$playlistId': typeof AuthenticatedPlaylistPlaylistIdRoute
+  '/api/public/apk': typeof ApiPublicApkRoute
   '/api/public/hooks/youtube-key-health': typeof ApiPublicHooksYoutubeKeyHealthRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
 }
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/playlist/$playlistId'
+    | '/api/public/apk'
     | '/api/public/hooks/youtube-key-health'
     | '/lovable/email/transactional/preview'
   fileRoutesByTo: FileRoutesByTo
@@ -286,6 +296,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/playlist/$playlistId'
+    | '/api/public/apk'
     | '/api/public/hooks/youtube-key-health'
     | '/lovable/email/transactional/preview'
   id:
@@ -312,6 +323,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/playlist/$playlistId'
+    | '/api/public/apk'
     | '/api/public/hooks/youtube-key-health'
     | '/lovable/email/transactional/preview'
   fileRoutesById: FileRoutesById
@@ -334,6 +346,7 @@ export interface RootRouteChildren {
   ArtistsIndexRoute: typeof ArtistsIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicApkRoute: typeof ApiPublicApkRoute
   ApiPublicHooksYoutubeKeyHealthRoute: typeof ApiPublicHooksYoutubeKeyHealthRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
 }
@@ -473,6 +486,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/apk': {
+      id: '/api/public/apk'
+      path: '/api/public/apk'
+      fullPath: '/api/public/apk'
+      preLoaderRoute: typeof ApiPublicApkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/playlist/$playlistId': {
       id: '/_authenticated/playlist/$playlistId'
       path: '/playlist/$playlistId'
@@ -549,6 +569,7 @@ const rootRouteChildren: RootRouteChildren = {
   ArtistsIndexRoute: ArtistsIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicApkRoute: ApiPublicApkRoute,
   ApiPublicHooksYoutubeKeyHealthRoute: ApiPublicHooksYoutubeKeyHealthRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
 }

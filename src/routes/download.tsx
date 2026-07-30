@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Smartphone, ShieldCheck, ExternalLink, RefreshCw } from "lucide-react";
+import {
+  Download,
+  Smartphone,
+  ShieldCheck,
+  ExternalLink,
+  RefreshCw,
+  Pause,
+  Play,
+  X,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { InstallButton } from "@/components/pwa/install-button";
+import { useApkDownload } from "@/hooks/use-apk-download";
 import { getLatestAndroidRelease } from "@/lib/android/release.functions";
 import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/android/release";
 
@@ -40,6 +50,18 @@ function DownloadPage() {
     queryFn: () => fetchRelease(),
     staleTime: 10 * 60 * 1000,
   });
+  const release = data?.status === "ok" ? data.release : null;
+  const download = useApkDownload(
+    release
+      ? {
+          version: release.version,
+          apkUrl: release.apkUrl,
+          apkName: release.apkName,
+          sizeBytes: release.sizeBytes,
+        }
+      : null,
+  );
+
 
   return (
     <AppShell>
@@ -74,14 +96,92 @@ function DownloadPage() {
                 </span>
               </div>
 
-              <a
-                href={data.release.apkUrl}
-                className="flex h-12 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                download
-              >
-                <Download className="size-4" />
-                Download APK for Android
-              </a>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-3">
+                  {download.active ? (
+                    <button
+                      type="button"
+                      onClick={download.pause}
+                      aria-label="Pause the APK download"
+                      className="flex h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      <Pause className="size-4" aria-hidden="true" />
+                      Pause download
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void download.start()}
+                      aria-label={
+                        download.resumable
+                          ? `Resume downloading IMUSIC version ${data.release.version} APK`
+                          : `Download IMUSIC version ${data.release.version} APK`
+                      }
+                      className="flex h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      {download.resumable ? (
+                        <Play className="size-4" aria-hidden="true" />
+                      ) : (
+                        <Download className="size-4" aria-hidden="true" />
+                      )}
+                      {download.resumable
+                        ? `Resume download (${download.percent ?? 0}%)`
+                        : "Download APK for Android"}
+                    </button>
+                  )}
+                  {(download.active || download.resumable) && (
+                    <button
+                      type="button"
+                      onClick={() => void download.cancel()}
+                      aria-label="Cancel download and discard saved progress"
+                      className="flex size-12 items-center justify-center rounded-lg border border-border transition-colors hover:border-primary"
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </button>
+                  )}
+                </div>
+
+                {(download.active || download.resumable || download.phase === "error") && (
+                  <>
+                    <div
+                      role="progressbar"
+                      aria-label="APK download progress"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={download.percent ?? undefined}
+                      className="h-2 w-full overflow-hidden rounded-full bg-surface-raised"
+                    >
+                      <div
+                        className={`h-full rounded-full transition-[width] duration-300 ${
+                          download.phase === "error" ? "bg-destructive" : "bg-primary"
+                        }`}
+                        style={{ width: `${download.percent ?? 0}%` }}
+                      />
+                    </div>
+                    <p
+                      className={`text-xs ${download.phase === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {download.phase === "error"
+                        ? (download.error ?? "Download interrupted — your progress is saved.")
+                        : download.phase === "preparing"
+                          ? "Preparing download…"
+                          : download.phase === "assembling"
+                            ? "Finishing up…"
+                            : `${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
+                                download.progress.totalBytes,
+                              )} · ${download.percent ?? 0}%`}
+                    </p>
+                  </>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Downloads resume automatically if your connection drops — progress is kept on this
+                  device.
+                </p>
+              </div>
+
 
               {shaFrom(data.release.notes) ? (
                 <p className="flex items-start gap-2 break-all text-xs text-muted-foreground">
