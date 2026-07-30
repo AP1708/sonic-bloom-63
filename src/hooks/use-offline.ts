@@ -188,6 +188,10 @@ export function useOffline() {
     remove,
     keep: keepTrack,
     refreshMix,
+    cancelRefresh,
+    dismissProgress,
+    retryItem,
+
     ready: Boolean(history || liked),
   };
 }
