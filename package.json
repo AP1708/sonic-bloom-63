@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "security:scan": "node scripts/security-scan.mjs",
+    "security:deps": "npm audit --audit-level=high --omit=dev || true"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
