@@ -153,7 +153,7 @@ function HomePage() {
   const newArtists = useMemo(() => {
     const known = new Set(
       [
-        ...(history ?? []).map((entry) => entry.artist?.toLowerCase()),
+        ...(history ?? []).map((entry) => entry.track?.artist?.toLowerCase()),
         ...(catalog?.artists ?? []).map((artist) => artist.name.toLowerCase()),
       ].filter(Boolean) as string[],
     );
