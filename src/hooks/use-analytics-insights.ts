@@ -76,7 +76,7 @@ export function useAnalyticsInsights(range: InsightsRange, enabled: boolean) {
 
       for (const row of rows) {
         const meta = (row.meta ?? {}) as Record<string, unknown>;
-        if (row.event === "search.finished") searches += 1;
+        if (row.event === "search.completed" || row.event === "search.empty") searches += 1;
         if (row.event === "search.failed") searchFailures += 1;
         if (row.category === "search" && typeof meta.strategy === "string") {
           bump(strategies, meta.strategy);
