@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Eye, EyeOff, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX } from "lucide-react";
+import { Download, Eye, EyeOff, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { useSession } from "@/hooks/use-session";
 import {
