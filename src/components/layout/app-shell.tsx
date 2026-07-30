@@ -90,6 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="flex items-center gap-3">
               <ThemeToggle className="hidden sm:flex" />
               <MobileThemeToggle />
+              <SettingsMenu />
               <ConnectionsMenu />
               {user ? (
                 <div className="flex items-center gap-3">
