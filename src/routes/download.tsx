@@ -40,6 +40,18 @@ function DownloadPage() {
     queryFn: () => fetchRelease(),
     staleTime: 10 * 60 * 1000,
   });
+  const release = data?.status === "ok" ? data.release : null;
+  const download = useApkDownload(
+    release
+      ? {
+          version: release.version,
+          apkUrl: release.apkUrl,
+          apkName: release.apkName,
+          sizeBytes: release.sizeBytes,
+        }
+      : null,
+  );
+
 
   return (
     <AppShell>
