@@ -20,6 +20,7 @@ import {
 } from "@/lib/query-persist";
 import { ThemeProvider, ThemeScript } from "@/components/theme/theme";
 import { MotionPrefsProvider } from "@/components/motion/motion-prefs";
+import { appleSplashLinks } from "@/lib/pwa/apple-splash";
 
 
 function NotFoundComponent() {
@@ -123,6 +124,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", sizes: "180x180", href: "/icons/apple-touch-icon-180.png" },
+      ...appleSplashLinks,
     ],
   }),
   shellComponent: RootShell,
