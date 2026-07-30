@@ -367,6 +367,7 @@ export type Database = {
           suspended_by: string | null
           suspended_until: string | null
           suspension_reason: string | null
+          theme_preference: string
         }
         Insert: {
           avatar_url?: string | null
@@ -377,6 +378,7 @@ export type Database = {
           suspended_by?: string | null
           suspended_until?: string | null
           suspension_reason?: string | null
+          theme_preference?: string
         }
         Update: {
           avatar_url?: string | null
@@ -387,6 +389,7 @@ export type Database = {
           suspended_by?: string | null
           suspended_until?: string | null
           suspension_reason?: string | null
+          theme_preference?: string
         }
         Relationships: []
       }
