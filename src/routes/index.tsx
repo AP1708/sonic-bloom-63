@@ -334,6 +334,7 @@ function HomePage() {
                 src={heroTrack.artworkUrl}
                 alt={`${heroTrack.title} artwork`}
                 className="aspect-square w-full"
+                priority
               />
               <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-background/80 p-4 backdrop-blur">
                 <span className="label-mono">Top pick</span>
