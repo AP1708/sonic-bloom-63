@@ -400,3 +400,12 @@
   animation: none;
 }
 
+
+/* Before hydration sets data-anim-reduced, honour the OS setting. */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-anim-reduced]) .card-enter,
+  html:not([data-anim-reduced]) .fresh-pill,
+  html:not([data-anim-reduced]) .fresh-flash {
+    animation: none;
+  }
+}
