@@ -16,6 +16,7 @@ import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
 import { useSession } from "@/hooks/use-session";
+import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { greeting } from "@/lib/format";
 import type { Track } from "@/lib/music/types";
 
