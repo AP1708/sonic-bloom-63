@@ -50,20 +50,31 @@ export const getLatestAndroidRelease = createServerFn({ method: "GET" }).handler
         value = { status: "error", message: `GitHub returned ${response.status}` };
       } else {
         const release = (await response.json()) as GithubRelease;
-        const apk = release.assets?.find((asset) => asset.name.endsWith(".apk"));
-        value = apk
+        const variants: ApkVariant[] = (release.assets ?? [])
+          .filter((asset) => asset.name.toLowerCase().endsWith(".apk"))
+          .map((asset) => ({
+            abi: abiFromAssetName(asset.name),
+            apkUrl: asset.browser_download_url,
+            apkName: asset.name,
+            sizeBytes: asset.size,
+          }));
+        // Default to the universal build so one-tap flows work on any device.
+        const primary = variants.find((variant) => variant.abi === "universal") ?? variants[0];
+        value = primary
           ? {
               status: "ok",
               release: {
                 version: (release.tag_name ?? release.name ?? "").replace(/^v/, "") || "latest",
                 publishedAt: release.published_at ?? null,
-                apkUrl: apk.browser_download_url,
-                apkName: apk.name,
-                sizeBytes: apk.size,
+                apkUrl: primary.apkUrl,
+                apkName: primary.apkName,
+                sizeBytes: primary.sizeBytes,
                 notes: release.body ?? null,
+                variants,
               },
             }
           : { status: "none" };
+
       }
     } catch (error) {
       console.error("GitHub releases lookup threw", error);
