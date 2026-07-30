@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { listAdminProfiles, setUserSuspension } from "@/lib/admin/moderation.functions";
 
 export interface AdminProfileRow {
   id: string;
@@ -41,10 +42,12 @@ export function useIsAdmin(userId?: string) {
     enabled: Boolean(userId),
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("has_role", {
-        _user_id: userId!,
-        _role: "admin",
-      });
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId!)
+        .eq("role", "admin")
+        .maybeSingle();
       if (error) throw error;
       return Boolean(data);
     },
@@ -56,12 +59,8 @@ export function useAdminUsers(enabled: boolean) {
     queryKey: adminKeys.users(),
     enabled,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url, created_at, suspended_until, suspension_reason, suspended_at")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as AdminProfileRow[];
+      const rows = await listAdminProfiles();
+      return rows as AdminProfileRow[];
     },
   });
 }
@@ -95,24 +94,13 @@ export function useAdminPlaylists(enabled: boolean) {
   });
 }
 
-export function useSuspendUser(adminId?: string) {
+export function useSuspendUser(_adminId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { userId: string; days: number | null; reason?: string }) => {
-      const suspend = input.days !== null;
-      const until = suspend
-        ? new Date(Date.now() + input.days! * 86_400_000).toISOString()
-        : null;
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          suspended_until: until,
-          suspension_reason: suspend ? (input.reason?.trim() || "Policy violation") : null,
-          suspended_at: suspend ? new Date().toISOString() : null,
-          suspended_by: suspend ? adminId ?? null : null,
-        })
-        .eq("id", input.userId);
-      if (error) throw error;
+      await setUserSuspension({
+        data: { userId: input.userId, days: input.days, reason: input.reason },
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.users() }),
   });
