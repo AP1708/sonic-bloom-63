@@ -212,8 +212,8 @@ function HomePage() {
       });
     }
 
-    // Extra discovery rails beyond the three shown up top.
-    discovery.rails.slice(3).forEach((rail) => {
+    // Extra discovery rails beyond the four shown up top.
+    discovery.rails.slice(4).forEach((rail) => {
       sections.push({ id: rail.id, caption: rail.caption, title: rail.title, tracks: rail.tracks });
     });
 
