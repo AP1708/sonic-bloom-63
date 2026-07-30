@@ -19,7 +19,9 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/", changefreq: "daily", priority: "1.0" },
           { path: "/search", changefreq: "weekly", priority: "0.8" },
           { path: "/artists", changefreq: "weekly", priority: "0.8" },
+          { path: "/download", changefreq: "weekly", priority: "0.8" },
           { path: "/guides/indian-instruments", changefreq: "monthly", priority: "0.7" },
+
           { path: "/settings", changefreq: "monthly", priority: "0.4" },
           { path: "/auth", changefreq: "monthly", priority: "0.3" },
         ];

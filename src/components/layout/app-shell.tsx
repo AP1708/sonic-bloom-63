@@ -90,7 +90,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-3">
+              <Link
+                to="/download"
+                className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground sm:flex"
+              >
+                <Smartphone className="size-3.5" />
+                Android app
+              </Link>
               <InstallButton />
+
               <ThemeToggle className="hidden sm:flex" />
               <MobileThemeToggle />
               <SettingsMenu />
