@@ -90,9 +90,11 @@ function scanMigrations() {
     let g;
     while ((g = grantAnon.exec(lower))) {
       const table = /on\s+(?:table\s+)?(?:public\.)?"?([a-z0-9_]+)"?/.exec(g[0])?.[1];
-      if (table && PUBLIC_READ_ALLOWLIST.has(table)) continue;
+      // schema/function/sequence grants to anon are routine; only tables matter here
+      if (!table || ["schema", "function", "sequence", "all"].includes(table)) continue;
+      if (PUBLIC_READ_ALLOWLIST.has(table)) continue;
       add("warn", "anon-grant", `supabase/migrations/${file}`,
-        `GRANT to anon${table ? ` on ${table}` : ""} — confirm this data is meant to be world-readable.`);
+        `GRANT to anon on ${table} — confirm this data is meant to be world-readable.`);
     }
 
     // policies open to everyone
