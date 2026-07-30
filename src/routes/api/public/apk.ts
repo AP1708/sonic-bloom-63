@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ANDROID_RELEASE_REPO } from "@/lib/android/release";
+import { ANDROID_RELEASE_REPO } from "@/lib/apk/release";
 
 /**
  * Same-origin streaming proxy for the signed IMUSIC APK.

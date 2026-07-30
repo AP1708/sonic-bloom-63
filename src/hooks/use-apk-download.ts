@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { track } from "@/lib/analytics/events";
-import { clearDownload } from "@/lib/android/apk-download-store";
+import { clearDownload } from "@/lib/apk/apk-download-store";
 import {
   RangeUnsupportedError,
   peekProgress,
@@ -9,7 +9,7 @@ import {
   saveBlob,
   type ApkDownloadPhase,
   type ApkProgress,
-} from "@/lib/android/apk-download";
+} from "@/lib/apk/apk-download";
 
 export interface ApkRelease {
   version: string;

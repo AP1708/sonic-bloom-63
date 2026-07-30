@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   ANDROID_RELEASE_REPO,
   type AndroidReleaseResult,
-} from "@/lib/android/release";
+} from "@/lib/apk/release";
 
 type GithubAsset = {
   name: string;
