@@ -149,20 +149,40 @@ async function putEntry(entry: OfflineEntry, blob: Blob | null) {
 /**
  * Saves a track for offline use. Archive tracks are fully downloaded; other
  * sources are pinned as metadata only.
+ *
+ * `onBytes` reports download progress; `total` is 0 when the server doesn't
+ * send a content-length. Throws when a real audio URL exists but the fetch
+ * fails, so callers can mark the item failed instead of silently pinning it.
  */
 export async function saveTrack(
   track: Track,
   reason: OfflineReason = "manual",
   signal?: AbortSignal,
+  onBytes?: (received: number, total: number) => void,
 ): Promise<OfflineEntry> {
   const url = track.audioUrl ?? null;
   let blob: Blob | null = null;
   if (url) {
-    try {
-      const response = await fetch(url, { signal });
-      if (response.ok) blob = await response.blob();
-    } catch {
-      blob = null;
+    const response = await fetch(url, { signal });
+    if (!response.ok) throw new Error(`Download failed (${response.status})`);
+    const total = Number(response.headers.get("content-length") ?? 0);
+    if (response.body && typeof response.body.getReader === "function") {
+      const reader = response.body.getReader();
+      const chunks: BlobPart[] = [];
+      let received = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) {
+          chunks.push(value as unknown as BlobPart);
+          received += value.byteLength;
+          onBytes?.(received, total);
+        }
+      }
+      blob = new Blob(chunks, { type: response.headers.get("content-type") ?? "audio/mpeg" });
+    } else {
+      blob = await response.blob();
+      onBytes?.(blob.size, total || blob.size);
     }
   }
   const entry: OfflineEntry = {
@@ -176,6 +196,7 @@ export async function saveTrack(
   await putEntry(entry, blob);
   return entry;
 }
+
 
 export async function removeTrack(trackId: string): Promise<void> {
   const db = await openDb();
