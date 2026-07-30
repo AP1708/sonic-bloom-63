@@ -532,10 +532,12 @@ function HomePage() {
           <section key={section.id} className="flex flex-col gap-4">
             <SectionHeader caption={section.caption} title={section.title} />
             <Carousel>
-              {section.tracks.map((track) => (
+              {section.tracks.map((track, index) => (
                 <SongCard
                   key={`${section.id}-${track.id}`}
                   track={track}
+                  index={index}
+                  isNew={freshMarkers.tracks.has(trackKey(track))}
                   playing={player.isPlaying && player.current?.id === track.id}
                   onPlay={() => player.playTrack(track, section.tracks)}
                 />
