@@ -21,7 +21,7 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const inFlight = new Map<string, Promise<Track[]>>();
+const inFlight = new Map<string, Promise<unknown>>();
 
 export function cacheKey(query: string, limit: number): string {
   return `${query.trim().toLowerCase()}::${limit}`;
