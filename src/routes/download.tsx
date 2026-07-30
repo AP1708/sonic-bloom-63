@@ -313,7 +313,10 @@ function DownloadPage() {
           )}
         </section>
 
-        <section className="surface-panel flex flex-col gap-4 p-6">
+        <section
+          id="install"
+          className="surface-panel flex scroll-mt-24 flex-col gap-4 p-6 target:ring-1 target:ring-primary"
+        >
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Smartphone className="size-4 text-primary" />
             How to install
