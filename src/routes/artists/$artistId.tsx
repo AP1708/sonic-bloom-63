@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Artwork } from "@/components/music/artwork";
 import { TrackRow, TrackListHeader, EmptyState } from "@/components/music/track-row";
 import { usePlayer } from "@/components/player/player-provider";
-import { loadFullCatalog } from "@/lib/music/full-catalog";
+import { artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { useLikedSongs, useToggleLike } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
 
