@@ -381,10 +381,12 @@ function HomePage() {
           <section key={rail.id} className="flex flex-col gap-4">
             <SectionHeader caption={rail.caption} title={rail.title} moreTo="/search" />
             <Carousel>
-              {rail.tracks.map((track) => (
+              {rail.tracks.map((track, index) => (
                 <SongCard
                   key={`${rail.id}-${track.id}`}
                   track={track}
+                  index={index}
+                  isNew={freshMarkers.tracks.has(trackKey(track))}
                   playing={player.isPlaying && player.current?.id === track.id}
                   onPlay={() => player.playTrack(track, rail.tracks)}
                 />
@@ -397,13 +399,15 @@ function HomePage() {
           <section className="flex flex-col gap-4">
             <SectionHeader caption="Artists you haven't heard yet" title="New artists for you" />
             <Carousel>
-              {newArtists.map((artist) => (
+              {newArtists.map((artist, index) => (
                 <ArtistCard
                   key={artist.name}
                   id={artistSlug(artist.name)}
                   name={artist.name}
                   caption="Start radio"
                   imageUrl={artist.artworkUrl}
+                  index={index}
+                  isNew={freshMarkers.artists.has(artist.name.toLowerCase().trim())}
                   onPlay={() =>
                     player.playTrack(
                       artist.sample,
