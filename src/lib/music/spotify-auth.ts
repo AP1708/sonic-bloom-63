@@ -1,12 +1,15 @@
-import { exchangeSpotifyCode, refreshSpotifyToken } from "@/lib/music/spotify.functions";
-import { linkSpotifyAccount } from "@/lib/music/connections.functions";
+import {
+  connectSpotifyWithCode,
+  mintSpotifyAccessToken,
+} from "@/lib/music/connections.functions";
 
 /**
  * Browser-side Spotify user session (Authorization Code + PKCE).
  *
- * The code exchange and refresh both happen in server functions, so the client
- * secret never reaches the browser. Only the user's own access token is stored
- * locally — it is what the Web Playback SDK needs to stream full tracks.
+ * The code exchange and every refresh happen in authenticated server
+ * functions. The long-lived refresh token is stored encrypted server-side and
+ * never reaches the browser: local storage only ever holds the short-lived
+ * access token the Web Playback SDK needs.
  */
 
 const STORAGE_KEY = "sonance.spotify.session";
@@ -26,9 +29,9 @@ export const SPOTIFY_SCOPES = [
 
 export interface SpotifySession {
   accessToken: string;
-  refreshToken: string | null;
   expiresAt: number;
 }
+
 
 export function redirectUri(): string {
   return `${window.location.origin}/spotify/callback`;
