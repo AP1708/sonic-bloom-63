@@ -28,7 +28,13 @@ export function SongCard({
   return (
     <article
       className={cn("group flex shrink-0 snap-start flex-col gap-2", width, isNew && "card-enter")}
-      style={isNew ? { animationDelay: `${Math.min(index, 8) * 40}ms` } : undefined}
+      style={
+        isNew
+          ? {
+              animationDelay: `calc(${Math.min(index, 8)} * var(--anim-card-stagger, 40ms))`,
+            }
+          : undefined
+      }
     >
       <div className="lift-on-hover relative">
         <Artwork
