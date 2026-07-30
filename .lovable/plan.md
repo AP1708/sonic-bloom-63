@@ -1,90 +1,59 @@
-# Create the IMUSIC GitHub repo and publish the first signed APK
+# Push IMUSIC project code to `Ayush1708/imusic`
 
-## Goal
-Create a public GitHub repository at `Ayush1708/imusic`, push the project code, generate a new signing keystore, and trigger the existing GitHub Actions workflow to build and publish the signed APK to GitHub Releases. The in-app `/download` page at `https://sonic-bloom-63.lovable.app/download` will then detect the release automatically.
+## Current state
+- Verified via `git remote -v` and `git status`: the project currently has two remotes, `origin` (Lovable internal storage) and `secondary` (S3 backup), and no GitHub remote.
+- The working tree is clean.
+- The current branch is `edit/edt-f7d36485-cd37-4aca-8667-2f16483483ef`.
 
-## Why this is a manual repo
-You chose a manual GitHub repo (not Lovable GitHub sync). That means you create the empty repo on GitHub and push the code from your local clone or the Lovable editor. The Android build itself still runs on GitHub Actions because the workflow file is already committed in the project.
+## Important constraint
+The Lovable editor cannot run state-changing git commands such as `git push` or `git remote set-url`. Those commands must be executed in the user's local terminal where GitHub credentials are available, or by using Lovable's built-in GitHub sync UI.
 
-## Exact steps
+## Proposed approach
 
-### 1. Create the public GitHub repository
-1. Sign in to GitHub as `Ayush1708`.
-2. Go to `https://github.com/new`.
-3. Repository name: `imusic`.
-4. Visibility: **Public** (required — the download page reads the GitHub releases API anonymously).
-5. Do **not** initialize with README, `.gitignore`, or license (those files already exist in the project).
-6. Click **Create repository**.
+### Step 1 — Confirm the GitHub repo exists
+Verify that `https://github.com/Ayush1708/imusic` is already created and set to **Public**. If it is missing, the plan is blocked until it is created.
 
-### 2. Push the project code to the new repo
-
-From the project root (or your local clone), run:
+### Step 2 — Prepare the local branch
+Rename the current branch to `main` so the pushed branch matches GitHub conventions:
 
 ```bash
-# Replace the remote with the new repo
-git remote add origin https://github.com/Ayush1708/imusic.git
-# If an origin already exists, update it instead:
-# git remote set-url origin https://github.com/Ayush1708/imusic.git
-
 git branch -M main
-git push -u origin main
 ```
 
-The `android/` directory is intentionally gitignored, so the `android/` folder will be generated fresh on the GitHub Actions runner.
-
-### 3. Generate the Android signing keystore
-
-On your local machine, run the project helper script:
+### Step 3 — Add the GitHub remote
+Add a remote named `github` pointing to the target repo. Using a distinct name (`github`) avoids overwriting the existing `origin` remote that Lovable uses internally.
 
 ```bash
-bash scripts/generate-keystore.sh
+git remote add github https://github.com/Ayush1708/imusic.git
 ```
 
-The script will:
-- Create `imusic-release.keystore` in the repo root.
-- Ask you to choose and confirm a keystore password (minimum 6 characters).
-- Print the `ANDROID_KEY_ALIAS` and prompt you to save the password.
-- Print the `ANDROID_KEYSTORE_BASE64` string to copy.
+If a remote named `github` already exists, update it instead:
 
-⚠️ **Back up `imusic-release.keystore` and the password somewhere safe.** Losing them means future APKs cannot update over existing installs.
+```bash
+git remote set-url github https://github.com/Ayush1708/imusic.git
+```
 
-### 4. Add GitHub Actions secrets
+### Step 4 — Push the code
+Push the current `main` branch to GitHub and set it as the upstream tracking branch.
 
-1. Go to `https://github.com/Ayush1708/imusic/settings/secrets/actions`.
-2. Add these **Repository secrets**:
+```bash
+git push -u github main
+```
 
-| Secret name | Value |
-| --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | The full single-line base64 output from the helper script |
-| `ANDROID_KEYSTORE_PASSWORD` | The keystore password you typed |
-| `ANDROID_KEY_ALIAS` | `imusic` |
-| `ANDROID_KEY_PASSWORD` | The same keystore password |
+If GitHub prompts for credentials, authenticate with the GitHub CLI or a personal access token.
 
-### 5. Trigger the release workflow
+### Step 5 — Verify the push
+Confirm the remote and branch state:
 
-1. Go to `https://github.com/Ayush1708/imusic/actions/workflows/android-release.yml`.
-2. Click **Run workflow**.
-3. Enter a version, e.g. `1.0.0`.
-4. Click **Run workflow**.
+```bash
+git remote -v
+git branch -vv
+```
 
-The workflow will:
-- Install dependencies and build the offline fallback bundle.
-- Create the native Android project (`bunx cap add android`).
-- Sign the release APK with the keystore.
-- Create a GitHub Release tagged `v1.0.0`.
-- Attach `imusic-1.0.0.apk` as the release asset.
+Then open `https://github.com/Ayush1708/imusic` and confirm the project files are visible.
 
-### 6. Verify the published APK
-
-1. Open `https://github.com/Ayush1708/imusic/releases` and confirm the APK is attached.
-2. Open `https://sonic-bloom-63.lovable.app/download` in the app or browser.
-3. The page should show the latest version, release date, APK size, SHA-256, and a working download button.
-
-## Notes
-
-- The APK is never committed to the repo; it is stored as a GitHub Release asset, which is the standard practice for Android apps.
-- Future releases only require clicking **Run workflow** again with a higher version. The `versionCode` in the generated Android build is derived automatically from the version string.
-- The existing `android/RELEASE.md` file contains a manual fallback for local builds if you ever need to bypass GitHub Actions.
+## Alternative: Lovable GitHub sync
+If you prefer two-way sync instead of a one-time manual push, the in-editor option is: **Plus (+) menu → GitHub → Connect project**. This will create the repo automatically and keep Lovable and GitHub in sync. Choose this option if you want ongoing bidirectional sync.
 
 ## What will not change in the codebase
-No project files need to be edited for this task. The app already points to `Ayush1708/imusic` in `src/lib/android/release.ts` and the workflow is already configured in `.github/workflows/android-release.yml`.
+No project files need to be edited for this task. The push only adds a remote and uploads the existing commit history to GitHub.
