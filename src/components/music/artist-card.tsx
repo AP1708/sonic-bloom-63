@@ -14,16 +14,21 @@ export function ArtistCard({
   caption,
   imageUrl,
   onPlay,
+  isNew,
+  index = 0,
 }: {
   id: string;
   name: string;
   caption?: string;
   imageUrl?: string | null;
   onPlay?: () => void;
+  /** Marks an artist surfaced by the latest discovery refresh. */
+  isNew?: boolean;
+  index?: number;
 }) {
   const inner = (
     <>
-      <div className="lift-on-hover w-full">
+      <div className="lift-on-hover relative w-full">
         <Artwork
           seed={id}
           src={imageUrl ?? undefined}
@@ -31,6 +36,11 @@ export function ArtistCard({
           className="aspect-square w-full"
           rounded="rounded-full"
         />
+        {isNew && (
+          <span className="fresh-pill label-mono pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground shadow">
+            New
+          </span>
+        )}
       </div>
       <div className="flex w-full flex-col gap-0.5">
         <p className="truncate text-sm font-medium">{name}</p>
@@ -39,12 +49,21 @@ export function ArtistCard({
     </>
   );
 
-  const className =
-    "group flex w-32 shrink-0 snap-start flex-col items-center gap-3 text-center sm:w-36";
+  const className = cn(
+    "group flex w-32 shrink-0 snap-start flex-col items-center gap-3 text-center sm:w-36",
+    isNew && "card-enter",
+  );
+  const style = isNew ? { animationDelay: `${Math.min(index, 8) * 40}ms` } : undefined;
 
   if (onPlay) {
     return (
-      <button type="button" onClick={onPlay} className={className} aria-label={`Play ${name}`}>
+      <button
+        type="button"
+        onClick={onPlay}
+        className={className}
+        style={style}
+        aria-label={`Play ${name}`}
+      >
         {inner}
       </button>
     );
