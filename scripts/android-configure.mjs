@@ -43,6 +43,23 @@ if (!gradle.includes("signingConfigs {")) {
   gradle = gradle.replace(/buildTypes\s*\{/, `${signingBlock.trim()}\n    buildTypes {`);
 }
 
+// Per-ABI splits: smaller downloads per device, plus a universal fallback.
+const splitsBlock = `
+    splits {
+        abi {
+            enable true
+            reset()
+            include "armeabi-v7a", "arm64-v8a", "x86_64"
+            universalApk true
+        }
+    }
+`;
+
+if (!gradle.includes("splits {")) {
+  gradle = gradle.replace(/buildTypes\s*\{/, `${splitsBlock.trim()}\n    buildTypes {`);
+}
+
+
 // Attach the signing config to the release build type.
 gradle = gradle.replace(
   /buildTypes\s*\{\s*release\s*\{/,
