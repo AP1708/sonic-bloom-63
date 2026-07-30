@@ -14,6 +14,7 @@ import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
 import { rotateFeedSeed, seededSample, seededShuffle, useFeedSeed } from "@/lib/music/feed-seed";
+import { useMotionPrefs } from "@/components/motion/motion-prefs";
 import {
   resetDiscoveryStore,
   trackKey,
@@ -120,7 +121,8 @@ function HomePage() {
   /** Batches merge into a growing feed instead of replacing it. */
   const discovery = useAccumulatedDiscovery(discoveryBatch);
   /** Short-lived markers on whatever the latest refresh appended. */
-  const freshMarkers = useFreshMarkers(discovery);
+  const { prefs: motionPrefs } = useMotionPrefs();
+  const freshMarkers = useFreshMarkers(discovery, motionPrefs.badgeMs);
 
   const refreshFeed = () => {
     rotateFeedSeed();
