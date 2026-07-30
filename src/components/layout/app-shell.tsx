@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Smartphone, Sun, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
@@ -90,7 +90,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-3">
+              <Link
+                to="/download"
+                className="hidden items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground sm:flex"
+              >
+                <Smartphone className="size-3.5" />
+                Android app
+              </Link>
               <InstallButton />
+
               <ThemeToggle className="hidden sm:flex" />
               <MobileThemeToggle />
               <SettingsMenu />
