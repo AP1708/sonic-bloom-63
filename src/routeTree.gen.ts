@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ArtistsIndexRouteImport } from './routes/artists/index'
 import { Route as YoutubeCallbackRouteImport } from './routes/youtube/callback'
 import { Route as SpotifyCallbackRouteImport } from './routes/spotify/callback'
+import { Route as GuidesIndianInstrumentsRouteImport } from './routes/guides.indian-instruments'
 import { Route as ArtistsArtistIdRouteImport } from './routes/artists/$artistId'
 import { Route as AuthenticatedLikedRouteImport } from './routes/_authenticated/liked'
 import { Route as AuthenticatedLibraryRouteImport } from './routes/_authenticated/library'
@@ -70,6 +71,11 @@ const SpotifyCallbackRoute = SpotifyCallbackRouteImport.update({
   path: '/spotify/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const GuidesIndianInstrumentsRoute = GuidesIndianInstrumentsRouteImport.update({
+  id: '/guides/indian-instruments',
+  path: '/guides/indian-instruments',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ArtistsArtistIdRoute = ArtistsArtistIdRouteImport.update({
   id: '/artists/$artistId',
   path: '/artists/$artistId',
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
+  '/guides/indian-instruments': typeof GuidesIndianInstrumentsRoute
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/library': typeof AuthenticatedLibraryRoute
   '/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
+  '/guides/indian-instruments': typeof GuidesIndianInstrumentsRoute
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists': typeof ArtistsIndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/_authenticated/library': typeof AuthenticatedLibraryRoute
   '/_authenticated/liked': typeof AuthenticatedLikedRoute
   '/artists/$artistId': typeof ArtistsArtistIdRoute
+  '/guides/indian-instruments': typeof GuidesIndianInstrumentsRoute
   '/spotify/callback': typeof SpotifyCallbackRoute
   '/youtube/callback': typeof YoutubeCallbackRoute
   '/artists/': typeof ArtistsIndexRoute
@@ -174,6 +183,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/liked'
     | '/artists/$artistId'
+    | '/guides/indian-instruments'
     | '/spotify/callback'
     | '/youtube/callback'
     | '/artists/'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/liked'
     | '/artists/$artistId'
+    | '/guides/indian-instruments'
     | '/spotify/callback'
     | '/youtube/callback'
     | '/artists'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/_authenticated/library'
     | '/_authenticated/liked'
     | '/artists/$artistId'
+    | '/guides/indian-instruments'
     | '/spotify/callback'
     | '/youtube/callback'
     | '/artists/'
@@ -224,6 +236,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ArtistsArtistIdRoute: typeof ArtistsArtistIdRoute
+  GuidesIndianInstrumentsRoute: typeof GuidesIndianInstrumentsRoute
   SpotifyCallbackRoute: typeof SpotifyCallbackRoute
   YoutubeCallbackRoute: typeof YoutubeCallbackRoute
   ArtistsIndexRoute: typeof ArtistsIndexRoute
@@ -293,6 +306,13 @@ declare module '@tanstack/react-router' {
       path: '/spotify/callback'
       fullPath: '/spotify/callback'
       preLoaderRoute: typeof SpotifyCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/indian-instruments': {
+      id: '/guides/indian-instruments'
+      path: '/guides/indian-instruments'
+      fullPath: '/guides/indian-instruments'
+      preLoaderRoute: typeof GuidesIndianInstrumentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/artists/$artistId': {
@@ -374,6 +394,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ArtistsArtistIdRoute: ArtistsArtistIdRoute,
+  GuidesIndianInstrumentsRoute: GuidesIndianInstrumentsRoute,
   SpotifyCallbackRoute: SpotifyCallbackRoute,
   YoutubeCallbackRoute: YoutubeCallbackRoute,
   ArtistsIndexRoute: ArtistsIndexRoute,
@@ -382,3 +403,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
