@@ -119,6 +119,8 @@ function HomePage() {
 
   /** Batches merge into a growing feed instead of replacing it. */
   const discovery = useAccumulatedDiscovery(discoveryBatch);
+  /** Short-lived markers on whatever the latest refresh appended. */
+  const freshMarkers = useFreshMarkers(discovery);
 
   const refreshFeed = () => {
     rotateFeedSeed();
