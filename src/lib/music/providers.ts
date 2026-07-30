@@ -54,7 +54,7 @@ export const spotifyProvider: MusicProvider = {
 
 export const youtubeProvider: MusicProvider = {
   id: "youtube",
-  label: "YouTube",
+  label: "YouTube Music",
   // The API key lives server-side; the server function reports if it is missing.
   isConfigured: () => true,
   async search(query, options = {}) {

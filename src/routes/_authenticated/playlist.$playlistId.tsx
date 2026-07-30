@@ -122,7 +122,7 @@ function PlaylistPage() {
                   ) : (
                     <Youtube className="size-4" />
                   )}
-                  Sync to YouTube
+                  Sync to YouTube Music
                 </button>
               ) : null}
             </div>

@@ -6,10 +6,10 @@ import { completeYouTubeConnect } from "@/lib/music/connections.functions";
 export const Route = createFileRoute("/youtube/callback")({
   head: () => ({
     meta: [
-      { title: "Connecting YouTube — Sonance" },
-      { name: "description", content: "Finishing the secure YouTube account connection." },
-      { property: "og:title", content: "Connecting YouTube — Sonance" },
-      { property: "og:description", content: "Finishing the secure YouTube account connection." },
+      { title: "Connecting YouTube Music — Sonance" },
+      { name: "description", content: "Finishing the secure YouTube Music account connection." },
+      { property: "og:title", content: "Connecting YouTube Music — Sonance" },
+      { property: "og:description", content: "Finishing the secure YouTube Music account connection." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "robots", content: "noindex" },
@@ -29,7 +29,7 @@ function YouTubeCallback() {
     const params = new URLSearchParams(window.location.search);
     const denied = params.get("error");
     if (denied) {
-      setError(denied === "access_denied" ? "You cancelled the YouTube connection." : denied);
+      setError(denied === "access_denied" ? "You cancelled the YouTube Music connection." : denied);
       return;
     }
     const code = params.get("code");
@@ -52,7 +52,7 @@ function YouTubeCallback() {
     })
       .then(() => navigate({ to: back.startsWith("/") ? back : "/", replace: true }))
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Could not connect YouTube."),
+        setError(err instanceof Error ? err.message : "Could not connect YouTube Music."),
       );
   }, [navigate]);
 
@@ -62,7 +62,7 @@ function YouTubeCallback() {
         {error ? (
           <>
             <AlertTriangle className="size-6 text-destructive" />
-            <h1 className="text-lg">YouTube connection failed</h1>
+            <h1 className="text-lg">YouTube Music connection failed</h1>
             <p className="text-sm text-muted-foreground">{error}</p>
             <button
               type="button"
@@ -75,7 +75,7 @@ function YouTubeCallback() {
         ) : (
           <>
             <Loader2 className="size-6 animate-spin text-primary" />
-            <h1 className="text-lg">Connecting your YouTube account…</h1>
+            <h1 className="text-lg">Connecting your YouTube Music account…</h1>
             <p className="text-sm text-muted-foreground">Hang tight, this only takes a moment.</p>
           </>
         )}

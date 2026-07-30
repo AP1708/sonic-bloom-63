@@ -68,7 +68,7 @@ export function Equalizer({ className }: { className?: string }) {
 }
 
 export function SourceTag({ source }: { source: MusicSource }) {
-  const label = source === "spotify" ? "Spotify" : source === "youtube" ? "YouTube" : "Archive";
+  const label = source === "spotify" ? "Spotify" : source === "youtube" ? "YT Music" : "Archive";
   return (
     <span
       className={cn(
