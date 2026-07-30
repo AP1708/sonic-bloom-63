@@ -17,6 +17,11 @@ import { useOffline } from "@/hooks/use-offline";
 import { useSession } from "@/hooks/use-session";
 import { formatBytes, STORAGE_PRESETS } from "@/lib/offline/settings";
 import type { OfflineEntry } from "@/lib/offline/store";
+import type {
+  SmartDownloadItem,
+  SmartDownloadProgress,
+} from "@/lib/offline/smart-downloads";
+
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
