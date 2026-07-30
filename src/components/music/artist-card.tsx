@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Artwork } from "./artwork";
+import { cn } from "@/lib/utils";
 
 /**
  * Round avatar card. Round artwork is how YouTube Music distinguishes artists
