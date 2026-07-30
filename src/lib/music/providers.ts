@@ -1,3 +1,4 @@
+import { track as trackEvent } from "@/lib/analytics/events";
 import { DEMO_TRACKS } from "./catalog";
 import { loadFullCatalog, searchFullCatalog } from "./full-catalog";
 import { searchYouTube } from "./youtube.functions";
@@ -106,7 +107,7 @@ export async function searchAll(query: string, options: SearchOptions = {}): Pro
   const source = options.source ?? "all";
   const active = source === "all" ? PROVIDERS : PROVIDERS.filter((p) => p.id === source);
 
-  track({ event: "search.started", category: "search", query, meta: { source } });
+  trackEvent({ event: "search.started", category: "search", query, meta: { source } });
   const startedAll = Date.now();
 
   const settled = await Promise.allSettled(
@@ -116,7 +117,7 @@ export async function searchAll(query: string, options: SearchOptions = {}): Pro
         const result = provider.searchWithMeta
           ? await provider.searchWithMeta(query, options)
           : { tracks: await provider.search(query, options) };
-        track({
+        trackEvent({
           event: result.tracks.length ? "search.completed" : "search.empty",
           category: "search",
           source: provider.id,
@@ -129,7 +130,7 @@ export async function searchAll(query: string, options: SearchOptions = {}): Pro
         });
         return result.tracks;
       } catch (error) {
-        track({
+        trackEvent({
           event: "search.failed",
           category: "search",
           source: provider.id,
@@ -158,7 +159,7 @@ export async function searchAll(query: string, options: SearchOptions = {}): Pro
     }
   });
 
-  track({
+  trackEvent({
     event: "search.finished",
     category: "search",
     query,
