@@ -103,10 +103,8 @@ export const searchYouTube = createServerFn({ method: "GET" })
       return apiSearch();
 
       async function apiSearch(): Promise<Track[]> {
+        const keys = availableApiKeys();
 
-
-    return dedupe(key, async () => {
-      const keys = availableApiKeys();
 
       let lastError: Error | null = null;
 
