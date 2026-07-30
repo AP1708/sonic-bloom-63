@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { Play, Shuffle } from "lucide-react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Play, RefreshCw, Shuffle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { Carousel, SectionHeader } from "@/components/music/carousel";
 import { ChipRow, MOODS } from "@/components/music/chip-row";
@@ -13,7 +13,8 @@ import { usePlayer } from "@/components/player/player-provider";
 import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/catalog";
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
-import { feedSeed, seededSample, seededShuffle } from "@/lib/music/feed-seed";
+import { rotateFeedSeed, seededSample, seededShuffle, useFeedSeed } from "@/lib/music/feed-seed";
+import { resetDiscoveryStore, useAccumulatedDiscovery } from "@/lib/music/feed-store";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
@@ -21,6 +22,7 @@ import { useSession } from "@/hooks/use-session";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { greeting } from "@/lib/format";
 import type { Track } from "@/lib/music/types";
+
 
 
 export const Route = createFileRoute("/")({
