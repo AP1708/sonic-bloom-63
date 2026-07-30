@@ -1,9 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { Download, Smartphone, ShieldCheck, ExternalLink, RefreshCw } from "lucide-react";
+import {
+  Download,
+  Smartphone,
+  ShieldCheck,
+  ExternalLink,
+  RefreshCw,
+  Pause,
+  Play,
+  X,
+} from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
 import { InstallButton } from "@/components/pwa/install-button";
+import { useApkDownload } from "@/hooks/use-apk-download";
 import { getLatestAndroidRelease } from "@/lib/android/release.functions";
 import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/android/release";
 
