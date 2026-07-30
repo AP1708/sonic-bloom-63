@@ -23,9 +23,15 @@ export interface AccumulatedFeed {
   fresh: Track[];
   /** How many batches have been merged so far this session. */
   batches: number;
+  /** Track keys added by the latest batch (empty for the very first batch). */
+  freshKeys: Set<string>;
+  /** Artist names (lowercased) added by the latest batch. */
+  freshArtistKeys: Set<string>;
+  /** Increments with every merged batch — used to reset marker timers. */
+  batchId: number;
 }
 
-function trackKey(track: Track): string {
+export function trackKey(track: Track): string {
   return `${track.title.toLowerCase().trim()}|${track.artist.toLowerCase().trim()}`;
 }
 
@@ -36,6 +42,8 @@ interface Store {
   artistSeen: Set<string>;
   fresh: Track[];
   batches: number;
+  freshKeys: Set<string>;
+  freshArtistKeys: Set<string>;
 }
 
 function emptyStore(): Store {
@@ -46,6 +54,8 @@ function emptyStore(): Store {
     artistSeen: new Set(),
     fresh: [],
     batches: 0,
+    freshKeys: new Set(),
+    freshArtistKeys: new Set(),
   };
 }
 
@@ -59,6 +69,9 @@ function snapshot(): AccumulatedFeed {
     artists: store.artists,
     fresh: store.fresh,
     batches: store.batches,
+    freshKeys: store.freshKeys,
+    freshArtistKeys: store.freshArtistKeys,
+    batchId: store.batches,
   };
 }
 
