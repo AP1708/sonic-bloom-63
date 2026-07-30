@@ -549,7 +549,10 @@ function HomePage() {
           </section>
         ))}
 
+        <ApkDownloadCard />
+
         <div ref={sentinelRef} aria-hidden className="h-px" />
+
 
         {hasMore ? (
           <p className="pb-6 text-center text-xs text-muted-foreground" role="status">
