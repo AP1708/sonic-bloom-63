@@ -41,10 +41,12 @@ export function useIsAdmin(userId?: string) {
     enabled: Boolean(userId),
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("has_role", {
-        _user_id: userId!,
-        _role: "admin",
-      });
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId!)
+        .eq("role", "admin")
+        .maybeSingle();
       if (error) throw error;
       return Boolean(data);
     },
@@ -56,12 +58,8 @@ export function useAdminUsers(enabled: boolean) {
     queryKey: adminKeys.users(),
     enabled,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url, created_at, suspended_until, suspension_reason, suspended_at")
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      return (data ?? []) as AdminProfileRow[];
+      const rows = await listAdminProfiles();
+      return rows as AdminProfileRow[];
     },
   });
 }
