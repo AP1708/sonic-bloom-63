@@ -277,3 +277,63 @@
 @utility rise-in {
   animation: rise-in 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* Newly appended discovery items: fade + rise so a refresh reads visually. */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@utility card-enter {
+  animation: card-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* The "New" marker lingers briefly, then dissolves on its own. */
+@keyframes fresh-pill {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  12%,
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+}
+
+@utility fresh-pill {
+  animation: fresh-pill 12s ease-in-out both;
+}
+
+@keyframes fresh-flash {
+  0% {
+    color: var(--color-primary);
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+@utility fresh-flash {
+  animation: fresh-flash 2.4s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter,
+  .fresh-flash {
+    animation: none;
+  }
+  .fresh-pill {
+    animation: none;
+  }
+}
