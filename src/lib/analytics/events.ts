@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import type { MusicSource } from "@/lib/music/types";
 
 /**
@@ -56,7 +57,7 @@ interface QueuedRow {
   reason: string | null;
   duration_ms: number | null;
   result_count: number | null;
-  meta: Record<string, unknown>;
+  meta: Json;
   client: string;
   created_at: string;
 }
@@ -131,7 +132,7 @@ export function track(input: AnalyticsEventInput) {
       duration_ms:
         input.durationMs == null ? null : Math.max(0, Math.round(input.durationMs)),
       result_count: input.resultCount == null ? null : Math.round(input.resultCount),
-      meta: input.meta ?? {},
+      meta: (input.meta ?? {}) as Json,
       client: "web",
       created_at: new Date().toISOString(),
     });
