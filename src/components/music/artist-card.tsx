@@ -54,7 +54,9 @@ export function ArtistCard({
     "group flex w-32 shrink-0 snap-start flex-col items-center gap-3 text-center sm:w-36",
     isNew && "card-enter",
   );
-  const style = isNew ? { animationDelay: `${Math.min(index, 8) * 40}ms` } : undefined;
+  const style = isNew
+    ? { animationDelay: `calc(${Math.min(index, 8)} * var(--anim-card-stagger, 40ms))` }
+    : undefined;
 
   if (onPlay) {
     return (
