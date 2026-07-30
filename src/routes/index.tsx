@@ -325,6 +325,34 @@ function HomePage() {
             })}
           </Carousel>
         </section>
+
+        {visibleExtras.map((section) => (
+          <section key={section.id} className="flex flex-col gap-4">
+            <SectionHeader caption={section.caption} title={section.title} />
+            <Carousel>
+              {section.tracks.map((track) => (
+                <SongCard
+                  key={`${section.id}-${track.id}`}
+                  track={track}
+                  playing={player.isPlaying && player.current?.id === track.id}
+                  onPlay={() => player.playTrack(track, section.tracks)}
+                />
+              ))}
+            </Carousel>
+          </section>
+        ))}
+
+        <div ref={sentinelRef} aria-hidden className="h-px" />
+
+        {hasMore ? (
+          <p className="pb-6 text-center text-xs text-muted-foreground" role="status">
+            {loading ? "Loading more music…" : "Scroll for more"}
+          </p>
+        ) : (
+          visibleExtras.length > 0 && (
+            <p className="pb-6 text-center text-xs text-muted-foreground">You've reached the end</p>
+          )
+        )}
       </div>
     </AppShell>
   );
