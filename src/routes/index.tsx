@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Play, RefreshCw, Shuffle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
-import { ApkDownloadCard } from "@/components/android/apk-download-card";
+import { ApkDownloadCard } from "@/components/apk/apk-download-card";
 import { Carousel, SectionHeader } from "@/components/music/carousel";
 import { ChipRow, MOODS } from "@/components/music/chip-row";
 import { SongCard, MixCard } from "@/components/music/song-card";
