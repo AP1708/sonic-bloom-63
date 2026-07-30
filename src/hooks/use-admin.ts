@@ -94,24 +94,13 @@ export function useAdminPlaylists(enabled: boolean) {
   });
 }
 
-export function useSuspendUser(adminId?: string) {
+export function useSuspendUser(_adminId?: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { userId: string; days: number | null; reason?: string }) => {
-      const suspend = input.days !== null;
-      const until = suspend
-        ? new Date(Date.now() + input.days! * 86_400_000).toISOString()
-        : null;
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          suspended_until: until,
-          suspension_reason: suspend ? (input.reason?.trim() || "Policy violation") : null,
-          suspended_at: suspend ? new Date().toISOString() : null,
-          suspended_by: suspend ? adminId ?? null : null,
-        })
-        .eq("id", input.userId);
-      if (error) throw error;
+      await setUserSuspension({
+        data: { userId: input.userId, days: input.days, reason: input.reason },
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.users() }),
   });
