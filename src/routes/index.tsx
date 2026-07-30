@@ -344,7 +344,15 @@ function HomePage() {
 
         {/* Fresh suggestions pulled live from YouTube Music on every open. */}
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground" aria-live="polite">
+          <p
+            key={`feed-status-${discovery.batchId}`}
+            className={`text-xs text-muted-foreground ${
+              !discoveryFetching && discovery.batches > 1 && discovery.fresh.length > 0
+                ? "fresh-flash"
+                : ""
+            }`}
+            aria-live="polite"
+          >
             {discoveryFetching
               ? "Refreshing your picks…"
               : discovery.batches > 1 && discovery.fresh.length > 0
