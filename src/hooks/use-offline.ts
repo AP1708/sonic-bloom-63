@@ -16,7 +16,12 @@ import {
   writeSettings,
   type SmartDownloadSettings,
 } from "@/lib/offline/settings";
-import { runSmartDownloads, type SmartDownloadProgress } from "@/lib/offline/smart-downloads";
+import {
+  runSmartDownloads,
+  type SmartDownloadItem,
+  type SmartDownloadProgress,
+} from "@/lib/offline/smart-downloads";
+
 import { useListeningHistory } from "@/hooks/use-listening-history";
 import { useLikedSongs } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
