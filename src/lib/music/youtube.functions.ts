@@ -67,6 +67,7 @@ export const searchYouTube = createServerFn({ method: "GET" })
       availableApiKeys,
       markKeyExhausted,
       innertubeSearch,
+      youtubeMusicSearch,
     } = await import("./youtube.server");
 
     if (!data.query.trim()) return [];
@@ -75,9 +76,20 @@ export const searchYouTube = createServerFn({ method: "GET" })
     const cached = readCache(key);
     if (cached) return cached;
 
-    // No project key configured at all: keyless web search still works.
-    if (!apiKeys().length) {
-      return dedupe(key, async () => {
+    return dedupe(key, async () => {
+      // Primary source: YouTube Music (songs only, no quota).
+      try {
+        const songs = await youtubeMusicSearch(data.query, data.limit);
+        if (songs.length) {
+          writeCache(key, songs);
+          return songs;
+        }
+      } catch (error) {
+        console.error(`YouTube Music search failed: ${(error as Error).message}`);
+      }
+
+      // No project key configured at all: keyless web search still works.
+      if (!apiKeys().length) {
         try {
           const tracks = await innertubeSearch(data.query, data.limit);
           writeCache(key, tracks);
@@ -87,8 +99,11 @@ export const searchYouTube = createServerFn({ method: "GET" })
           writeQuotaMiss(key);
           return [];
         }
-      });
-    }
+      }
+      return apiSearch();
+
+      async function apiSearch(): Promise<Track[]> {
+
 
     return dedupe(key, async () => {
       const keys = availableApiKeys();
