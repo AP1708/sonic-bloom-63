@@ -177,7 +177,7 @@ export function useApkDownload(release: ApkRelease | null) {
     } finally {
       if (controller.current === abort) controller.current = null;
     }
-  }, [release, progress.receivedBytes, fallbackToBrowser]);
+  }, [release, progress.receivedBytes, fallbackToBrowser, notifyComplete, openInstallPage]);
 
   const pause = useCallback(() => {
     controller.current?.abort();
