@@ -278,11 +278,24 @@
   animation: rise-in 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Newly appended discovery items: fade + rise so a refresh reads visually. */
-@keyframes card-enter {
+/*
+ * Newly appended discovery items.
+ *
+ * Style, intensity and timing come from the user's motion preference, which
+ * the provider writes onto <html> as data-anim-style + CSS variables.
+ */
+:root {
+  --anim-card-duration: 520ms;
+  --anim-card-stagger: 40ms;
+  --anim-card-shift: 12px;
+  --anim-card-scale: 0.955;
+  --anim-badge-duration: 12000ms;
+}
+
+@keyframes card-enter-rise {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.98);
+    transform: translateY(var(--anim-card-shift)) scale(var(--anim-card-scale));
   }
   to {
     opacity: 1;
@@ -290,18 +303,65 @@
   }
 }
 
-@utility card-enter {
-  animation: card-enter 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+@keyframes card-enter-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-/* The "New" marker lingers briefly, then dissolves on its own. */
+@keyframes card-enter-pop {
+  from {
+    opacity: 0;
+    transform: scale(var(--anim-card-scale));
+  }
+  60% {
+    opacity: 1;
+    transform: scale(calc(2 - var(--anim-card-scale)));
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes card-enter-slide {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--anim-card-shift) * 2));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@utility card-enter {
+  animation: card-enter-rise var(--anim-card-duration) cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+[data-anim-style="fade"] .card-enter {
+  animation-name: card-enter-fade;
+}
+
+[data-anim-style="pop"] .card-enter {
+  animation-name: card-enter-pop;
+}
+
+[data-anim-style="slide"] .card-enter {
+  animation-name: card-enter-slide;
+}
+
+/* The "New" marker lingers for the configured window, then dissolves. */
 @keyframes fresh-pill {
   0% {
     opacity: 0;
     transform: translateY(-4px);
   }
-  12%,
-  80% {
+  6%,
+  88% {
     opacity: 1;
     transform: translateY(0);
   }
@@ -312,7 +372,7 @@
 }
 
 @utility fresh-pill {
-  animation: fresh-pill 12s ease-in-out both;
+  animation: fresh-pill var(--anim-badge-duration) ease-in-out both;
 }
 
 @keyframes fresh-flash {
@@ -328,12 +388,15 @@
   animation: fresh-flash 2.4s ease-out both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .card-enter,
-  .fresh-flash {
-    animation: none;
-  }
-  .fresh-pill {
-    animation: none;
-  }
+/*
+ * Motion off — either chosen explicitly or because the OS asks for reduced
+ * motion and the user kept "respect reduced motion" on. The badge stays
+ * visible (static) so a refresh is still readable.
+ */
+[data-anim-reduced="true"] .card-enter,
+[data-anim-reduced="true"] .fresh-flash,
+[data-anim-reduced="true"] .fresh-pill,
+[data-anim-reduced="true"] .rise-in {
+  animation: none;
 }
+
