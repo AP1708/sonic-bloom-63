@@ -19,8 +19,11 @@ import { cn } from "@/lib/utils";
 import {
   strategyLabel,
   useAnalyticsInsights,
+  type InsightRow,
   type InsightsRange,
 } from "@/hooks/use-analytics-insights";
+import { downloadCsv, toCsv } from "@/lib/analytics/csv";
+
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
