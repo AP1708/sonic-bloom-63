@@ -13,6 +13,12 @@ import type { Track } from "./types";
 interface SearchInput {
   query: string;
   limit?: number;
+  /**
+   * Only use the YouTube Music songs catalog. Video-oriented fallbacks
+   * (keyless web search, Data API) are skipped so callers never receive
+   * generic video uploads.
+   */
+  musicOnly?: boolean;
 }
 
 /** Which code path actually served the results — the key troubleshooting signal. */

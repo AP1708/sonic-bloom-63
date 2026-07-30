@@ -41,6 +41,8 @@ export interface SearchOptions {
   source?: MusicSource | "all";
   limit?: number;
   signal?: AbortSignal;
+  /** Restrict YouTube results to the YouTube Music songs catalog (no video uploads). */
+  musicOnly?: boolean;
 }
 
 export interface SearchResults {
