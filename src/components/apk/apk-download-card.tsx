@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef } from "react";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -10,15 +10,19 @@ import {
   RefreshCw,
   AlertTriangle,
   Loader2,
+  Pause,
+  Play,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getLatestAndroidRelease } from "@/lib/android/release.functions";
 import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/android/release";
+import { useApkDownload } from "@/hooks/use-apk-download";
 
 /**
  * Compact GitHub Releases–backed download card.
- * Handles loading, failure (with retry + toast) and the happy path.
+ * Handles loading, failure (with retry + toast), and a resumable transfer.
  */
 export function ApkDownloadCard({ className }: { className?: string }) {
   const fetchRelease = useServerFn(getLatestAndroidRelease);
@@ -49,26 +53,36 @@ export function ApkDownloadCard({ className }: { className?: string }) {
     if (!failed) notified.current = false;
   }, [failed, isFetching, failureMessage, refetch]);
 
-  const [downloadError, setDownloadError] = useState(false);
-
-  const handleDownload = (url: string) => {
-    try {
-      setDownloadError(false);
-      window.location.href = url;
-    } catch {
-      setDownloadError(true);
-      toast.error("Download failed to start", {
-        description: "Open the releases page and download the APK manually.",
-        action: {
-          label: "Open releases",
-          onClick: () => window.open(ANDROID_RELEASES_URL, "_blank", "noopener"),
-        },
-      });
-    }
-  };
+  const release = data?.status === "ok" ? data.release : null;
+  const download = useApkDownload(
+    release
+      ? {
+          version: release.version,
+          apkUrl: release.apkUrl,
+          apkName: release.apkName,
+          sizeBytes: release.sizeBytes,
+        }
+      : null,
+  );
 
   const headingId = useId();
   const statusId = useId();
+  const progressId = useId();
+
+  const transferLabel =
+    download.phase === "preparing"
+      ? "Preparing download…"
+      : download.phase === "assembling"
+        ? "Finishing up…"
+        : download.phase === "error"
+          ? "Download interrupted — progress saved."
+          : download.active
+            ? `Downloading ${download.percent ?? 0}% · ${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
+                download.progress.totalBytes,
+              )}`
+            : download.resumable
+              ? `Paused at ${download.percent ?? 0}% — resume to continue.`
+              : null;
 
   return (
     <section
@@ -78,7 +92,7 @@ export function ApkDownloadCard({ className }: { className?: string }) {
       aria-atomic={failed ? "true" : undefined}
       className={`surface-panel flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between ${className ?? ""}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <span
           className={`flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-raised ${
             failed ? "text-destructive" : "text-primary"
@@ -91,7 +105,7 @@ export function ApkDownloadCard({ className }: { className?: string }) {
             <Smartphone className="size-5" aria-hidden="true" />
           )}
         </span>
-        <div className="flex flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
           <h2 id={headingId} className="text-base font-medium">
             Get IMUSIC for Android
           </h2>
@@ -109,19 +123,46 @@ export function ApkDownloadCard({ className }: { className?: string }) {
             >
               {failed
                 ? failureMessage
-                : downloadError
-                  ? "Download didn't start — try the releases page."
-                  : data?.status === "ok"
-                    ? `v${data.release.version} · ${formatBytes(data.release.sizeBytes)} · ${formatReleaseDate(
-                        data.release.publishedAt,
-                      )}`
-                    : "Signed APK published on GitHub Releases."}
+                : release
+                  ? `v${release.version} · ${formatBytes(release.sizeBytes)} · ${formatReleaseDate(
+                      release.publishedAt,
+                    )}`
+                  : "Signed APK published on GitHub Releases."}
             </p>
           )}
           {isPending && (
             <span className="sr-only" role="status">
               Checking for the latest release
             </span>
+          )}
+
+          {transferLabel && (
+            <div className="mt-2 flex flex-col gap-1.5">
+              <div
+                id={progressId}
+                role="progressbar"
+                aria-label="APK download progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={download.percent ?? undefined}
+                aria-valuetext={transferLabel}
+                className="h-1.5 w-full overflow-hidden rounded-full bg-surface-raised"
+              >
+                <div
+                  className={`h-full rounded-full transition-[width] duration-300 ${
+                    download.phase === "error" ? "bg-destructive" : "bg-primary"
+                  }`}
+                  style={{ width: `${download.percent ?? 0}%` }}
+                />
+              </div>
+              <p
+                className={`text-[11px] ${download.phase === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                role="status"
+                aria-live="polite"
+              >
+                {transferLabel}
+              </p>
+            </div>
           )}
         </div>
       </div>
@@ -150,16 +191,49 @@ export function ApkDownloadCard({ className }: { className?: string }) {
             <RefreshCw className={`size-4 ${isFetching ? "animate-spin" : ""}`} aria-hidden="true" />
             {isFetching ? "Retrying…" : "Retry"}
           </Button>
-        ) : data?.status === "ok" ? (
-          <Button
-            onClick={() => handleDownload(data.release.apkUrl)}
-            aria-label={`Download IMUSIC version ${data.release.version} APK`}
-            aria-describedby={statusId}
-            className="h-10"
-          >
-            <Download className="size-4" aria-hidden="true" />
-            Download APK
-          </Button>
+        ) : release ? (
+          <>
+            {download.active ? (
+              <Button
+                onClick={download.pause}
+                aria-label="Pause the APK download"
+                aria-describedby={progressId}
+                className="h-10"
+              >
+                <Pause className="size-4" aria-hidden="true" />
+                Pause
+              </Button>
+            ) : (
+              <Button
+                onClick={() => void download.start()}
+                aria-label={
+                  download.resumable
+                    ? `Resume downloading IMUSIC version ${release.version} APK`
+                    : `Download IMUSIC version ${release.version} APK`
+                }
+                aria-describedby={statusId}
+                className="h-10"
+              >
+                {download.resumable ? (
+                  <Play className="size-4" aria-hidden="true" />
+                ) : (
+                  <Download className="size-4" aria-hidden="true" />
+                )}
+                {download.resumable ? "Resume" : "Download APK"}
+              </Button>
+            )}
+            {(download.active || download.resumable) && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => void download.cancel()}
+                aria-label="Cancel download and discard saved progress"
+                className="size-10"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            )}
+          </>
         ) : (
           <Button
             variant="outline"
@@ -168,11 +242,7 @@ export function ApkDownloadCard({ className }: { className?: string }) {
             aria-describedby={statusId}
             className="h-10"
           >
-            <a
-              href={ANDROID_RELEASES_URL}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
+            <a href={ANDROID_RELEASES_URL} target="_blank" rel="noreferrer noopener">
               <ExternalLink className="size-4" aria-hidden="true" />
               View releases
             </a>
