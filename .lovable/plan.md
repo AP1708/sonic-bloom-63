@@ -1,28 +1,32 @@
 ## Goal
 
-Your light/dark/system choice should survive reloads (already partly true via local storage) and follow you across devices when signed in.
+Make the home feed feel like YouTube Music end to end, and make it genuinely fresh: new song suggestions every time you open the app, plus discovery rails for new songs and new artists — not just re-shuffled archive tracks.
 
 ## Current state (verified)
 
-`ThemeProvider` (`src/components/theme/theme.tsx`) stores the choice only in `localStorage` under `theme`, with an inline pre-hydration script to avoid a flash. Nothing is written to the backend, so a second device starts from `system`.
+`src/routes/index.tsx` already has YTM-style pieces (mood chips, hero, Quick picks grid, carousels, round artist cards, infinite scroll). But every rail is sampled deterministically from the local public-domain archive catalog (`full-catalog.ts` / `DEMO_TRACKS`) with fixed offsets, so the feed looks identical on every open and contains no genuinely new music. YouTube Music search (`youtube.functions.ts`, `musicOnly`) is only used for playback resolution and lyrics, never for discovery.
 
 ## What to build
 
-1. **Backend column**
-   - Add `theme_preference text` to `profiles` (allowed values `light` / `dark` / `system`, default `system`). Existing RLS already lets users read/update their own profile row, so no new policies needed.
+### 1. Fresh-on-every-open rotation
+- Add `src/lib/music/feed-seed.ts`: a per-session seed (rotates each app open, stored in `sessionStorage`) plus a seeded shuffle helper.
+- Replace the fixed `sample(pool, n, offset)` offsets with seeded picks so hero, Quick picks, Trending and Deep cuts differ every session while staying stable during that session (no reshuffle on re-render).
 
-2. **Server access**
-   - `src/lib/theme/theme.functions.ts`: `getThemePreference` and `setThemePreference` server functions using `requireSupabaseAuth`, reading/writing the signed-in user's `profiles` row. Value validated with zod.
+### 2. Live discovery from YouTube Music
+- New `src/lib/music/discovery.functions.ts` server function `getDiscoveryFeed`, calling the existing YTM `musicOnly` search with a rotating set of discovery queries (new Hindi/Punjabi/Tamil/Telugu releases, "new songs 2026", trending India, plus taste-seeded queries from the user's top artists), de-duplicating by track id.
+- Returns grouped rails: **New releases**, **Trending now**, **Fresh finds for you**, and **New artists** (artists extracted from the returned tracks that aren't in listening history or the local catalog).
+- Server-side cached like the existing YTM helpers (short TTL, e.g. 15–30 min, keyed by query set) so quota is protected; the per-session seed picks a different query slice each open.
 
-3. **Provider changes** (`src/components/theme/theme.tsx`)
-   - Keep local storage as the instant, offline source of truth and the pre-paint script unchanged (no flash).
-   - On mount, if a session exists, fetch the stored preference; if it differs from local, adopt the remote value (last-write-wins, remote is treated as newer only when local has never been set OR the remote row was updated more recently — simplest rule: remote wins on fresh load, local wins for the rest of the session).
-   - `setTheme` writes local storage immediately, then fires the server function in the background (silently ignored when signed out or offline).
-   - Re-sync on `SIGNED_IN` so switching accounts picks up that account's preference.
+### 3. Feed wiring
+- Home fetches discovery via TanStack Query (`staleTime` a few minutes, seeded key) and renders the new rails high in the feed, right after the hero/Quick picks: New releases → Fresh finds for you → Speed dial/Listen again → Mixed for you → Trending → **New artists for you** (round artist cards) → Recommended albums → infinite extras.
+- Graceful degradation: if YTM search returns nothing (quota/offline), those rails are hidden and the archive-based rails carry the feed, exactly as today.
+- Infinite scroll gains discovery pages too, so scrolling keeps introducing unfamiliar artists rather than only archive deep cuts.
 
-4. **No UI changes** — the existing toggle and `/settings`-style theme control keep working; behaviour is just persistent.
+### 4. YTM layout polish
+- Tighten card/rail sizing, captions and spacing to match YouTube Music (2-line card titles with subtitle caption, consistent rail gaps, header "More" affordance on hover), and make the mood chip row filter discovery queries too, not just the local pool.
 
 ## Technical notes
 
-- Signed-out users are fully functional via local storage; the account write is best-effort and never blocks the UI.
-- The time/season ambience system stays as-is; only the light/dark/system choice is persisted.
+- Discovery tracks are normal `Track` objects with `source: "youtube"`, so play/queue/like/download all work through the existing player and `TrackMenu` with no changes.
+- New-artist detection is client-side from returned track metadata plus `topArtists()` history, so no schema change is needed.
+- Analytics: tag discovery fetches with the existing analytics events so quota fallbacks stay visible in the Insights tab.
