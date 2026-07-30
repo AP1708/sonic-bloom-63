@@ -17,7 +17,14 @@ import { AppShell } from "@/components/layout/app-shell";
 import { InstallButton } from "@/components/pwa/install-button";
 import { useApkDownload } from "@/hooks/use-apk-download";
 import { getLatestAndroidRelease } from "@/lib/apk/release.functions";
-import { ANDROID_RELEASES_URL, formatBytes, formatReleaseDate } from "@/lib/apk/release";
+import {
+  ANDROID_RELEASES_URL,
+  formatBytes,
+  formatReleaseDate,
+  pickVariant,
+} from "@/lib/apk/release";
+import { ABI_HINT, ABI_LABEL, detectAbi, type Abi } from "@/lib/apk/device";
+
 
 export const Route = createFileRoute("/download")({
   head: () => ({
