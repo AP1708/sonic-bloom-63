@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut, Menu, Moon, Smartphone, Sun, X } from "lucide-react";
 import { Sidebar } from "./sidebar";
 import { PlayerBar } from "@/components/player/player-bar";
 import { SidePanel } from "@/components/player/side-panel";
