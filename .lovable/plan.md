@@ -1,41 +1,33 @@
 ## Goal
 
-Every time you open (or return to) the app, the home discovery rails pull a fresh batch from YouTube Music, and new song recommendations are **added** to the feed rather than swapping the whole thing out.
+After the home feed refreshes, the songs and artists that are actually new should visibly announce themselves — they fade/slide in and carry a short-lived "New" marker — so you can tell at a glance what changed.
 
-## Current behaviour
+## What you'll see
 
-- `src/lib/music/feed-seed.ts` stores one seed per browser session in `sessionStorage`. A reopened PWA/tab keeps the same tab session, so the seed — and therefore the rails — stay identical.
-- `src/routes/index.tsx` fetches discovery with a 5-minute `staleTime` and renders exactly the three returned rails; nothing accumulates over time.
+- On each refresh, newly appended cards in the discovery rails (New releases, Trending now, New on Spotify, Fresh finds) animate in with a staggered fade-and-rise instead of just appearing.
+- Those cards show a small "New" pill on the artwork that fades away after about 12 seconds (or as soon as the next batch arrives), so the feed doesn't stay permanently decorated.
+- The "New artists for you" rail does the same for artists that weren't there before.
+- The existing status line ("24 new songs added to your feed") gains a subtle highlight pulse when the count changes.
+- Everything is disabled under the system "reduce motion" setting — new items still get the badge, just no movement.
 
-## Changes
+## Technical approach
 
-### 1. Seed rotates per app open
+**1. Track which items are new (`src/lib/music/feed-store.ts`)**
+- `mergeBatch` already computes `freshThisBatch`. Add to the store a `freshKeys: Set<string>` (track keys) and `freshArtistKeys: Set<string>` for the most recent batch, plus a `batchId` counter.
+- Expose them on `AccumulatedFeed` so the UI can ask "is this card new?" without diffing arrays. First batch (`batches === 1`) reports no fresh keys — the whole feed is new then, so highlighting everything is noise.
 
-Rework `feed-seed.ts`:
-- Store the seed plus a `lastOpenedAt` timestamp in `localStorage` (so it survives reload/PWA restart).
-- Mint a **new** seed when the app opens cold, or when the page becomes visible again after being backgrounded longer than a threshold (~20 minutes).
-- Expose `useFeedSeed()`: returns the current seed and re-renders subscribers when it rotates, wiring a `visibilitychange` listener so returning to the app rotates without a manual reload.
+**2. Marker lifetime (`src/routes/index.tsx`)**
+- A small `useFreshMarkers(batchId, freshKeys)` hook holds the active marker set and clears it via a 12s timer, or immediately when a newer batch merges.
 
-### 2. Background refresh of discovery
+**3. Card rendering**
+- `SongCard` (`src/components/music/song-card.tsx`) and `ArtistCard` (`src/components/music/artist-card.tsx`) take an optional `isNew?: boolean` and `index?: number`.
+- When `isNew`, the card gets the entrance animation class with an inline `animationDelay` of `Math.min(index, 8) * 40ms` for the stagger, plus a "New" pill positioned over the artwork corner.
 
-In the home route:
-- Key the discovery query on the live seed, with `refetchOnWindowFocus`, `refetchOnMount: "always"`, and a short `staleTime` so a rotation triggers a real fetch.
-- Keep the previously shown rails visible while the new batch loads (`placeholderData` keep-previous), with a subtle "Refreshing picks" indicator instead of a skeleton flash.
+**4. Animation tokens (`src/styles.css`)**
+- Add a `card-enter` keyframe (opacity 0 → 1, `translateY(8px) scale(0.98)` → rest) and a `fresh-pill` fade-out, exposed as utility classes next to the existing `rise-in`/`equalize` keyframes, using the current accent tokens for the pill (no hardcoded colors).
+- Wrap the movement in `@media (prefers-reduced-motion: reduce)` to no-op.
 
-### 3. Accumulate new recommendations
+**5. Status line**
+- Add a brief highlight transition on the count text keyed to `batchId`.
 
-Add a small accumulator (`src/lib/music/feed-store.ts`):
-- Holds recommendations already shown this session, keyed by rail id, deduped by track id and title|artist.
-- Each discovery response merges in: **new tracks are prepended** to their rail, previously seen ones remain further along, so the rail grows instead of resetting.
-- Cap each rail (~40 tracks) and the total pool so memory stays bounded.
-- Genuinely new batches also spawn an extra "Fresh for you · just now" rail at the top of the infinite-scroll extras, and any newly discovered artists get appended to the "New artists for you" avatar rail.
-
-### 4. Manual refresh
-
-Add a small refresh control on the discovery section header that rotates the seed and refetches on demand.
-
-## Technical notes
-
-- Seed rotation logic lives in `feed-seed.ts` and is read via a hook so `HomePage` stays declarative; SSR keeps returning a fixed seed to avoid hydration mismatch, with rotation applied after mount.
-- Accumulation happens client-side; `discovery.functions.ts` stays unchanged, still hitting the cached `youtubeMusicSearch` path so extra opens do not multiply upstream quota usage.
-- Files touched: `src/lib/music/feed-seed.ts`, new `src/lib/music/feed-store.ts`, `src/routes/index.tsx`.
+No backend, query, or data-fetching changes — this is presentation only.
