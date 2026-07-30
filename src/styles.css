@@ -237,6 +237,17 @@
   }
 }
 
+/* Horizontal rails: scrollable without a visible scrollbar. */
+@utility scroll-rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+
+
 @keyframes equalize {
   0%,
   100% {
