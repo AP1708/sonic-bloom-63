@@ -47,6 +47,46 @@ export function useApkDownload(release: ApkRelease | null) {
   // Abort any in-flight transfer if the component unmounts.
   useEffect(() => () => controller.current?.abort(), []);
 
+  const openInstallPage = useCallback(() => {
+    const url = "/download#install";
+    if (window.location.pathname === "/download") {
+      window.location.hash = "install";
+      document.getElementById("install")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      window.location.assign(url);
+    }
+  }, []);
+
+  // Best-effort OS-level notification once the file is ready.
+  const notifyComplete = useCallback(
+    (version: string) => {
+      if (typeof Notification === "undefined") return;
+      const show = () => {
+        try {
+          const notification = new Notification("IMUSIC APK downloaded", {
+            body: `v${version} is ready to install. Tap for install steps.`,
+            icon: "/icons/icon-192.png",
+            tag: "imusic-apk-download",
+          });
+          notification.onclick = () => {
+            window.focus();
+            openInstallPage();
+            notification.close();
+          };
+        } catch {
+          /* notifications unsupported in this context */
+        }
+      };
+      if (Notification.permission === "granted") show();
+      else if (Notification.permission === "default") {
+        void Notification.requestPermission().then((result) => {
+          if (result === "granted") show();
+        });
+      }
+    },
+    [openInstallPage],
+  );
+
   const fallbackToBrowser = useCallback((url: string) => {
     // Range unsupported: let the browser handle it the old way so nobody is stuck.
     const anchor = document.createElement("a");
@@ -57,6 +97,7 @@ export function useApkDownload(release: ApkRelease | null) {
     anchor.click();
     anchor.remove();
   }, []);
+
 
   const start = useCallback(async () => {
     if (!release) return;
