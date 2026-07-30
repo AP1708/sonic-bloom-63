@@ -269,10 +269,11 @@ function DownloadPage() {
               </div>
 
 
-              {shaFrom(data.release.notes) ? (
+              {shaFrom(data.release.notes, selected?.apkName) ? (
                 <p className="flex items-start gap-2 break-all text-xs text-muted-foreground">
                   <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  SHA-256 {shaFrom(data.release.notes)}
+                  SHA-256 {shaFrom(data.release.notes, selected?.apkName)}
+
                 </p>
               ) : null}
             </>
