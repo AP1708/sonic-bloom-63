@@ -55,7 +55,7 @@ export function useImportLibrary() {
     mutationFn: (provider: ConnectionProvider) => importMusicLibrary({ data: { provider } }),
     onSuccess: (summary, provider) => {
       toast.success(
-        `Imported ${summary.playlists} playlist${summary.playlists === 1 ? "" : "s"} and ${summary.liked} liked song${summary.liked === 1 ? "" : "s"} from ${provider === "youtube" ? "YouTube" : "Spotify"}.`,
+        `Imported ${summary.playlists} playlist${summary.playlists === 1 ? "" : "s"} and ${summary.liked} liked song${summary.liked === 1 ? "" : "s"} from ${provider === "youtube" ? "YouTube Music" : "Spotify"}.`,
       );
       queryClient.invalidateQueries({ queryKey: ["playlists"] });
       queryClient.invalidateQueries({ queryKey: ["liked-songs"] });
@@ -71,7 +71,7 @@ export function useDisconnectAccount() {
   return useMutation({
     mutationFn: (provider: ConnectionProvider) => disconnectMusicAccount({ data: { provider } }),
     onSuccess: (_data, provider) => {
-      toast.success(`${provider === "youtube" ? "YouTube" : "Spotify"} account disconnected.`);
+      toast.success(`${provider === "youtube" ? "YouTube Music" : "Spotify"} account disconnected.`);
       queryClient.invalidateQueries({ queryKey: ["music-connections"] });
     },
     onError: (error: unknown) =>
@@ -87,12 +87,12 @@ export function useSyncPlaylistToYouTube() {
     onSuccess: (result) => {
       toast.success(
         result.added
-          ? `Added ${result.added} track${result.added === 1 ? "" : "s"} to your YouTube playlist.`
-          : "Your YouTube playlist is already up to date.",
+          ? `Added ${result.added} track${result.added === 1 ? "" : "s"} to your YouTube Music playlist.`
+          : "Your YouTube Music playlist is already up to date.",
       );
       queryClient.invalidateQueries({ queryKey: ["playlists"] });
     },
     onError: (error: unknown) =>
-      toast.error(error instanceof Error ? error.message : "Could not sync to YouTube."),
+      toast.error(error instanceof Error ? error.message : "Could not sync to YouTube Music."),
   });
 }

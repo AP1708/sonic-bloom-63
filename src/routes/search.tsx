@@ -17,9 +17,9 @@ export const Route = createFileRoute("/search")({
       { title: "Search — Sonance" },
       {
         name: "description",
-        content: "Search tracks across Spotify and YouTube at once and queue them instantly.",
+        content: "Search tracks across Spotify and YouTube Music at once and queue them instantly.",
       },
-      { property: "og:title", content: "Search across Spotify and YouTube — Sonance" },
+      { property: "og:title", content: "Search across Spotify and YouTube Music — Sonance" },
       {
         property: "og:description",
         content: "One search box for both music platforms, with graceful fallbacks.",
@@ -33,7 +33,7 @@ const FILTERS: { value: MusicSource | "all"; label: string }[] = [
   { value: "all", label: "All sources" },
   { value: "archive", label: "Archive" },
   { value: "spotify", label: "Spotify" },
-  { value: "youtube", label: "YouTube" },
+  { value: "youtube", label: "YouTube Music" },
 ];
 
 function SearchPage() {

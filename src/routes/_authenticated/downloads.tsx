@@ -65,7 +65,7 @@ function DownloadsPage() {
             <p className="max-w-xl text-sm text-muted-foreground">
               Smart downloads keep a mix on this device that follows what you actually play — your
               favourite artists first, refreshed automatically. Only public-domain recordings can be
-              stored as audio; Spotify and YouTube tracks are pinned but still stream.
+              stored as audio; Spotify and YouTube Music tracks are pinned but still stream.
             </p>
           </div>
           <div className="flex gap-2">

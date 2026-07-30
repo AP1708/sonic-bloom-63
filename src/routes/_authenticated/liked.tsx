@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/liked")({
   head: () => ({
     meta: [
       { title: "Liked songs — Sonance" },
-      { name: "description", content: "Every track you've saved across Spotify and YouTube." },
+      { name: "description", content: "Every track you've saved across Spotify and YouTube Music." },
       { property: "og:title", content: "Liked songs — Sonance" },
       { property: "og:description", content: "Your saved tracks from both platforms in one list." },
     ],

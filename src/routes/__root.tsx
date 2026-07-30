@@ -86,14 +86,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sonance — Spotify and YouTube in one player" },
+      { title: "Sonance — Spotify and YouTube Music in one player" },
       {
         name: "description",
         content:
-          "Sonance is a dark, fast music app that unifies Spotify and YouTube into one library, queue, and player.",
+          "Sonance is a dark, fast music app that unifies Spotify and YouTube Music into one library, queue, and player.",
       },
       { name: "author", content: "Sonance" },
-      { property: "og:title", content: "Sonance — Spotify and YouTube in one player" },
+      { property: "og:title", content: "Sonance — Spotify and YouTube Music in one player" },
       {
         property: "og:description",
         content: "One library, one queue, both platforms.",

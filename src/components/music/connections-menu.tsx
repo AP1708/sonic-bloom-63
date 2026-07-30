@@ -168,7 +168,7 @@ export function ConnectionsMenu({ className }: { className?: string }) {
 
       <ConnectionPill
         provider="youtube"
-        label="YouTube"
+        label="YouTube Music"
         icon={<Youtube className="size-3.5" />}
         connected={Boolean(youtubeRow)}
         accountLabel={youtubeRow?.accountLabel ?? null}
@@ -183,8 +183,8 @@ export function ConnectionsMenu({ className }: { className?: string }) {
         onDisconnect={() => disconnect.mutate("youtube")}
         note={
           youtubeConfig.data?.configured
-            ? "Playlists sync both ways — you can push Sonance playlists back to YouTube."
-            : "YouTube account linking isn't configured yet."
+            ? "Playlists sync both ways — you can push Sonance playlists back to YouTube Music."
+            : "YouTube Music account linking isn't configured yet."
         }
       />
     </div>

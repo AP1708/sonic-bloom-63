@@ -84,7 +84,7 @@ export function TrackMenu({
   const handleDownload = () => {
     const url = track.audioUrl;
     if (!url) {
-      toast.error("This track streams from YouTube or Spotify and can't be downloaded.");
+      toast.error("This track streams from YouTube Music or Spotify and can't be downloaded.");
       return;
     }
     const anchor = document.createElement("a");

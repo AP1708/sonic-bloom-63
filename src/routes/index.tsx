@@ -11,16 +11,16 @@ import { greeting } from "@/lib/format";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sonance — Stream music from Spotify and YouTube" },
+      { title: "Sonance — Stream music from Spotify and YouTube Music" },
       {
         name: "description",
         content:
-          "Sonance unifies your Spotify and YouTube music in one dark, fast player with playlists, liked songs, and a synced queue.",
+          "Sonance unifies your Spotify and YouTube Music in one dark, fast player with playlists, liked songs, and a synced queue.",
       },
-      { property: "og:title", content: "Sonance — One player for Spotify and YouTube" },
+      { property: "og:title", content: "Sonance — One player for Spotify and YouTube Music" },
       {
         property: "og:description",
-        content: "Search, queue, and organise music from Spotify and YouTube in a single library.",
+        content: "Search, queue, and organise music from Spotify and YouTube Music in a single library.",
       },
     ],
   }),
@@ -44,7 +44,7 @@ function HomePage() {
           <p className="label-mono">{new Date().toLocaleDateString(undefined, { weekday: "long" })}</p>
           <h1 className="text-4xl">{greeting()}</h1>
           <p className="max-w-xl text-sm text-muted-foreground">
-            Golden-era Indian recordings streaming in full, plus Spotify and YouTube in one queue.
+            Golden-era Indian recordings streaming in full, plus Spotify and YouTube Music in one queue.
           </p>
         </header>
 
