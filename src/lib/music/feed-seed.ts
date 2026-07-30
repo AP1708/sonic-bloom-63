@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 
 const SEED_KEY = "feed-seed";
-const OPENED_KEY = "feed-seed-opened-at";
+const HIDDEN_KEY = "feed-seed-hidden-at";
 
 /** Returning after this long counts as "opening the app again". */
 const REOPEN_AFTER_MS = 20 * 60 * 1000;
@@ -28,15 +28,6 @@ function mint(): number {
   return Math.floor(Math.random() * 1_000_000) + 1;
 }
 
-function persist(seed: number) {
-  try {
-    window.localStorage.setItem(SEED_KEY, String(seed));
-    window.localStorage.setItem(OPENED_KEY, String(Date.now()));
-  } catch {
-    /* storage can be unavailable in private modes — the seed still works in memory */
-  }
-}
-
 function emit(seed: number) {
   current = seed;
   for (const listener of listeners) listener(seed);
@@ -45,7 +36,12 @@ function emit(seed: number) {
 /** Force a new seed (manual refresh button, or a fresh open). */
 export function rotateFeedSeed(): number {
   const seed = mint();
-  persist(seed);
+  try {
+    window.localStorage.setItem(SEED_KEY, String(seed));
+    window.localStorage.removeItem(HIDDEN_KEY);
+  } catch {
+    /* storage can be unavailable in private modes — the seed still works in memory */
+  }
   emit(seed);
   return seed;
 }
@@ -55,53 +51,30 @@ export function feedSeed(): number {
   return current;
 }
 
-/** Mark the app as active so the away-timer restarts from now. */
-function touch() {
-  try {
-    window.localStorage.setItem(OPENED_KEY, String(Date.now()));
-  } catch {
-    /* ignore */
-  }
-}
-
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
 
-  let lastOpened = 0;
-  let stored = NaN;
-  try {
-    lastOpened = Number(window.localStorage.getItem(OPENED_KEY)) || 0;
-    stored = Number(window.localStorage.getItem(SEED_KEY));
-  } catch {
-    /* ignore */
-  }
+  // Every fresh page load is an "open", so the feed always starts different.
+  rotateFeedSeed();
 
-  // A cold open (fresh page load) always rotates unless we just reloaded.
-  const recentlyOpened = Date.now() - lastOpened < 5_000;
-  if (recentlyOpened && Number.isFinite(stored) && stored > 0) {
-    emit(stored);
-    touch();
-  } else {
-    rotateFeedSeed();
-  }
-
-  // Coming back to the foreground after a while counts as reopening the app.
+  // Coming back to the foreground after a long time away counts as reopening.
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") {
-      touch();
-      return;
-    }
-    let awaySince = 0;
     try {
-      awaySince = Number(window.localStorage.getItem(OPENED_KEY)) || 0;
+      if (document.visibilityState !== "visible") {
+        window.localStorage.setItem(HIDDEN_KEY, String(Date.now()));
+        return;
+      }
+      const hiddenAt = Number(window.localStorage.getItem(HIDDEN_KEY)) || 0;
+      window.localStorage.removeItem(HIDDEN_KEY);
+      if (hiddenAt && Date.now() - hiddenAt > REOPEN_AFTER_MS) rotateFeedSeed();
     } catch {
       /* ignore */
     }
-    if (Date.now() - awaySince > REOPEN_AFTER_MS) rotateFeedSeed();
-    else touch();
   });
 }
+
+
 
 /**
  * Subscribe to the feed seed. Returns the SSR seed on the server and during
