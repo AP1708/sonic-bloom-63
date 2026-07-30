@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { listAdminProfiles, setUserSuspension } from "@/lib/admin/moderation.functions";
 
 export interface AdminProfileRow {
   id: string;
