@@ -84,19 +84,68 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => media.removeEventListener("change", listener);
   }, []);
 
-  const setTheme = (next: Theme) => {
+  // Apply a theme locally without writing it back to the account. Used when we
+  // adopt the value stored on the signed-in profile.
+  const applyLocally = (next: Theme) => {
     if (typeof window !== "undefined") {
       localStorage.setItem(STORAGE_KEY, next);
     }
     setThemeState(next);
-    const resolved = resolveTheme(next);
-    setResolved(resolved);
-    applyThemeClass(resolved);
+    const nextResolved = resolveTheme(next);
+    setResolved(nextResolved);
+    applyThemeClass(nextResolved);
+  };
+
+  // Pull the account-level preference on load and whenever the signed-in user
+  // changes, so the choice follows you across devices. Local storage stays the
+  // instant, offline-capable source of truth; the account value wins on a
+  // fresh load / sign-in.
+  useEffect(() => {
+    let cancelled = false;
+
+    const pull = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) return;
+        const remote = await getThemePreference();
+        if (cancelled || !remote?.theme) return;
+        const local = localStorage.getItem(STORAGE_KEY) as Theme | null;
+        if (remote.theme !== local) applyLocally(remote.theme);
+      } catch {
+        // Offline or signed out — local storage already covers us.
+      }
+    };
+
+    void pull();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") void pull();
+    });
+
+    return () => {
+      cancelled = true;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  const setTheme = (next: Theme) => {
+    applyLocally(next);
+    // Best-effort account sync; never blocks or interrupts the UI.
+    void (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) return;
+        await setThemePreference({ data: { theme: next } });
+      } catch {
+        /* ignore */
+      }
+    })();
   };
 
   const toggle = () => {
     setTheme(resolved === "dark" ? "light" : "dark");
   };
+
 
   return (
     <ThemeContext.Provider value={{ theme, resolved, ambience, setTheme, toggle }}>
