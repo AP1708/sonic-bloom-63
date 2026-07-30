@@ -55,6 +55,17 @@ const FRESH_QUERIES = [
   "acoustic new releases",
 ];
 
+const SPOTIFY_QUERIES = [
+  "new music friday india",
+  "hot hits hindi",
+  "punjabi 101",
+  "global top 50",
+  "indie india new",
+  "bollywood butter",
+  "tamil top hits",
+  "fresh finds pop",
+];
+
 /** Rotate a query list so a different slice is used per session seed. */
 function slice(list: string[], seed: number, count: number): string[] {
   const start = Math.abs(seed) % list.length;
