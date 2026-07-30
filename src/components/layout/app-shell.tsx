@@ -8,6 +8,7 @@ import { ConnectionsMenu } from "@/components/music/connections-menu";
 import { FullscreenPlayer } from "@/components/player/fullscreen-player";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { SettingsMenu } from "@/components/settings/settings-menu";
+import { InstallButton } from "@/components/pwa/install-button";
 import { useTheme } from "@/components/theme/theme";
 import { usePlayer } from "@/components/player/player-provider";
 import { useSession } from "@/hooks/use-session";
@@ -89,6 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
 
             <div className="flex items-center gap-3">
+              <InstallButton />
               <ThemeToggle className="hidden sm:flex" />
               <MobileThemeToggle />
               <SettingsMenu />
