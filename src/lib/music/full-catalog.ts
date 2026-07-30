@@ -34,6 +34,22 @@ export function artistSlug(name: string) {
     .replace(/^-|-$/g, "");
 }
 
+/**
+ * Safe lookup for an artist's tracks. The catalog can come back from the
+ * persisted query cache, where the Map has been rehydrated as a plain object
+ * (or dropped entirely), so fall back to scanning tracks.
+ */
+export function artistTracks(catalog: FullCatalog | undefined | null, artistId: string): Track[] {
+  if (!catalog) return [];
+  const index = catalog.byArtist as unknown;
+  if (index instanceof Map) return index.get(artistId) ?? [];
+  if (index && typeof index === "object") {
+    const bucket = (index as Record<string, Track[]>)[artistId];
+    if (Array.isArray(bucket)) return bucket;
+  }
+  return (catalog.tracks ?? []).filter((track) => artistSlug(track.artist) === artistId);
+}
+
 let cached: Promise<FullCatalog> | null = null;
 
 export function loadFullCatalog(): Promise<FullCatalog> {
