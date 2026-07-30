@@ -1,6 +1,8 @@
 import { searchYouTube } from "./youtube.functions";
 import { searchSpotify } from "./spotify.functions";
+import { track as trackEvent } from "@/lib/analytics/events";
 import type { Track } from "./types";
+
 
 /**
  * Cross-source playback resolution.
