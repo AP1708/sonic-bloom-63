@@ -26,6 +26,9 @@ export interface SmartDownloadItem {
   id: string;
   title: string;
   artist: string;
+  /** Kept so the UI can retry a single failed download. */
+  track: Track;
+
   status: SmartItemStatus;
   /** Bytes fetched so far, and the expected total when the server reports one. */
   received: number;
