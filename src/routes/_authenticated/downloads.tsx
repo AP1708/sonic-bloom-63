@@ -17,6 +17,11 @@ import { useOffline } from "@/hooks/use-offline";
 import { useSession } from "@/hooks/use-session";
 import { formatBytes, STORAGE_PRESETS } from "@/lib/offline/settings";
 import type { OfflineEntry } from "@/lib/offline/store";
+import type {
+  SmartDownloadItem,
+  SmartDownloadProgress,
+} from "@/lib/offline/smart-downloads";
+
 import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -158,19 +163,26 @@ function DownloadsPage() {
             />
           </div>
 
-          {running ? (
+          {progress.items?.length ? (
+            <DownloadProgressCard
+              progress={progress}
+              running={running}
+              onCancel={offline.cancelRefresh}
+              onDismiss={offline.dismissProgress}
+              onRetry={(item) => void offline.retryItem(item)}
+            />
+          ) : running ? (
             <p className="label-mono">
-              {progress.phase === "downloading"
-                ? `Downloading ${progress.completed + 1}/${progress.total} · ${progress.currentTitle ?? ""}`
-                : progress.phase === "planning"
-                  ? "Working out what you'll want offline…"
-                  : "Tidying up…"}
+              {progress.phase === "planning"
+                ? "Working out what you'll want offline…"
+                : "Tidying up…"}
             </p>
           ) : settings.lastRunAt ? (
             <p className="label-mono">
               Last refreshed {new Date(settings.lastRunAt).toLocaleString()}
             </p>
           ) : null}
+
         </section>
 
         <Section
@@ -197,6 +209,136 @@ function DownloadsPage() {
     </AppShell>
   );
 }
+
+const PHASE_LABEL: Record<string, string> = {
+  planning: "Planning your mix",
+  downloading: "Downloading",
+  pruning: "Tidying up",
+  done: "Refresh complete",
+  skipped: "Refresh skipped",
+  idle: "Idle",
+};
+
+function DownloadProgressCard({
+  progress,
+  running,
+  onCancel,
+  onDismiss,
+  onRetry,
+}: {
+  progress: SmartDownloadProgress;
+  running: boolean;
+  onCancel: () => void;
+  onDismiss: () => void;
+  onRetry: (item: SmartDownloadItem) => void;
+}) {
+  const items = progress.items ?? [];
+  const finished = items.filter((item) => item.status !== "queued" && item.status !== "downloading");
+  const failed = items.filter((item) => item.status === "failed").length;
+  const percent = items.length ? (finished.length / items.length) * 100 : 0;
+
+  return (
+    <div className="flex flex-col gap-3 rounded-xl border border-border bg-surface p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col">
+          <span className="text-sm font-medium">{PHASE_LABEL[progress.phase] ?? "Working"}</span>
+          <span className="label-mono">
+            {finished.length}/{items.length} tracks
+            {failed ? ` · ${failed} failed` : ""}
+          </span>
+        </div>
+        {running ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Cancel
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Dismiss
+          </button>
+        )}
+      </div>
+
+      <div
+        role="progressbar"
+        aria-label="Smart download progress"
+        aria-valuemin={0}
+        aria-valuemax={items.length}
+        aria-valuenow={finished.length}
+        className="h-2 overflow-hidden rounded-full bg-surface-raised"
+      >
+        <div
+          className="h-full rounded-full bg-primary transition-all"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+
+      <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+        {items.map((item) => {
+          const itemPercent =
+            item.total > 0 ? Math.min(100, (item.received / item.total) * 100) : 0;
+          return (
+            <li key={item.id} className="flex flex-col gap-1 rounded-md px-2 py-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm">{item.title}</p>
+                  <p className="truncate text-xs text-muted-foreground">{item.artist}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <StatusChip status={item.status} />
+                  {item.status === "failed" ? (
+                    <button
+                      type="button"
+                      onClick={() => onRetry(item)}
+                      className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      Retry
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+              {item.status === "downloading" ? (
+                <div className="h-1 overflow-hidden rounded-full bg-surface-raised">
+                  <div
+                    className={cn(
+                      "h-full rounded-full bg-primary",
+                      itemPercent ? "transition-all" : "w-1/3 animate-pulse",
+                    )}
+                    style={itemPercent ? { width: `${itemPercent}%` } : undefined}
+                  />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function StatusChip({ status }: { status: SmartDownloadItem["status"] }) {
+  const map: Record<SmartDownloadItem["status"], { label: string; className: string }> = {
+    queued: { label: "Queued", className: "border-border text-muted-foreground" },
+    downloading: { label: "Downloading", className: "border-primary/40 text-primary" },
+    ready: { label: "Ready", className: "border-primary bg-primary/10 text-primary" },
+    failed: { label: "Failed", className: "border-destructive/50 text-destructive" },
+    pinned: { label: "Pinned", className: "border-border text-muted-foreground" },
+  };
+  const style = map[status];
+  return (
+    <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", style.className)}>
+      {style.label}
+    </span>
+  );
+}
+
 
 function StorageMeter({ used, limit }: { used: number; limit: number }) {
   const percent = Math.min(100, limit ? (used / limit) * 100 : 0);

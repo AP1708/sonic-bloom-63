@@ -16,7 +16,12 @@ import {
   writeSettings,
   type SmartDownloadSettings,
 } from "@/lib/offline/settings";
-import { runSmartDownloads, type SmartDownloadProgress } from "@/lib/offline/smart-downloads";
+import {
+  runSmartDownloads,
+  type SmartDownloadItem,
+  type SmartDownloadProgress,
+} from "@/lib/offline/smart-downloads";
+
 import { useListeningHistory } from "@/hooks/use-listening-history";
 import { useLikedSongs } from "@/hooks/use-library";
 import { useSession } from "@/hooks/use-session";
@@ -80,16 +85,21 @@ export function useOffline() {
   }, []);
 
   const runningRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+
   const refreshMix = useCallback(
     async (options?: { silent?: boolean }) => {
       if (runningRef.current) return;
       runningRef.current = true;
+      const controller = new AbortController();
+      abortRef.current = controller;
       try {
         const result = await runSmartDownloads({
           history: history ?? [],
           liked: liked ?? [],
           settings: readSettings(),
           onProgress: setProgress,
+          signal: controller.signal,
         });
         update({ lastRunAt: Date.now() });
         if (options?.silent) return;
@@ -99,11 +109,66 @@ export function useOffline() {
         } else toast("Your offline mix is already up to date");
       } finally {
         runningRef.current = false;
-        setProgress({ phase: "idle", completed: 0, total: 0 });
+        abortRef.current = null;
+        // Leave the finished run on screen (phase "done"/"skipped") so failures
+        // stay visible; only a genuinely empty run collapses back to idle.
+        setProgress((prev) =>
+          prev.items?.length ? { ...prev, phase: "done" } : { phase: "idle", completed: 0, total: 0 },
+        );
       }
     },
     [history, liked, update],
   );
+
+  const cancelRefresh = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const dismissProgress = useCallback(() => {
+    setProgress({ phase: "idle", completed: 0, total: 0 });
+  }, []);
+
+  /** Re-attempts a single failed item from the last run. */
+  const retryItem = useCallback(async (item: SmartDownloadItem) => {
+    setProgress((prev) => ({
+      ...prev,
+      items: prev.items?.map((entry) =>
+        entry.id === item.id ? { ...entry, status: "downloading", received: 0 } : entry,
+      ),
+    }));
+    try {
+      const saved = await saveTrack(item.track, "smart", undefined, (received, total) => {
+        setProgress((prev) => ({
+          ...prev,
+          items: prev.items?.map((entry) =>
+            entry.id === item.id ? { ...entry, received, total: total || entry.total } : entry,
+          ),
+        }));
+      });
+      setProgress((prev) => ({
+        ...prev,
+        items: prev.items?.map((entry) =>
+          entry.id === item.id
+            ? {
+                ...entry,
+                status: saved.hasAudio ? "ready" : "pinned",
+                received: saved.bytes,
+                total: saved.bytes || entry.total,
+              }
+            : entry,
+        ),
+      }));
+    } catch {
+      setProgress((prev) => ({
+        ...prev,
+        items: prev.items?.map((entry) =>
+          entry.id === item.id ? { ...entry, status: "failed" } : entry,
+        ),
+      }));
+      toast.error(`Couldn't download “${item.title}”`);
+    }
+  }, []);
+
 
   const smart = useMemo(() => entries.filter((entry) => entry.reason === "smart"), [entries]);
   const manual = useMemo(() => entries.filter((entry) => entry.reason === "manual"), [entries]);
@@ -123,6 +188,10 @@ export function useOffline() {
     remove,
     keep: keepTrack,
     refreshMix,
+    cancelRefresh,
+    dismissProgress,
+    retryItem,
+
     ready: Boolean(history || liked),
   };
 }

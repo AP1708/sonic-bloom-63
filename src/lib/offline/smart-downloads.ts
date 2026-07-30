@@ -20,13 +20,30 @@ import { isMeteredConnection, type SmartDownloadSettings } from "./settings";
  * songs that fell out of favour. Manual downloads are never removed here.
  */
 
+export type SmartItemStatus = "queued" | "downloading" | "ready" | "failed" | "pinned";
+
+export interface SmartDownloadItem {
+  id: string;
+  title: string;
+  artist: string;
+  /** Kept so the UI can retry a single failed download. */
+  track: Track;
+
+  status: SmartItemStatus;
+  /** Bytes fetched so far, and the expected total when the server reports one. */
+  received: number;
+  total: number;
+}
+
 export interface SmartDownloadProgress {
   phase: "idle" | "planning" | "downloading" | "pruning" | "done" | "skipped";
   completed: number;
   total: number;
   currentTitle?: string;
   message?: string;
+  items?: SmartDownloadItem[];
 }
+
 
 export interface SmartDownloadInput {
   history: HistoryEntry[];
@@ -166,29 +183,68 @@ export async function runSmartDownloads(input: SmartDownloadInput): Promise<Smar
     }
 
     const missing = target.filter((track) => !storedIds.has(track.id)).slice(0, MAX_PER_RUN);
+    const items: SmartDownloadItem[] = missing.map((track) => ({
+      id: track.id,
+      title: track.title,
+      artist: track.artist,
+      track,
+
+      status: "queued",
+      received: 0,
+      total: track.audioUrl ? Math.round(estimateBytes(track)) : 0,
+    }));
+    const snapshot = () => items.map((item) => ({ ...item }));
+
     let added = 0;
-    report({ phase: "downloading", completed: 0, total: missing.length });
-    for (const track of missing) {
+    report({ phase: "downloading", completed: 0, total: missing.length, items: snapshot() });
+    for (const [index, track] of missing.entries()) {
       if (signal?.aborted) break;
+      const item = items[index];
+      item.status = "downloading";
       report({
         phase: "downloading",
         completed: added,
         total: missing.length,
         currentTitle: track.title,
+        items: snapshot(),
       });
       try {
-        await saveTrack(track, "smart", signal);
+        let lastReport = 0;
+        const entry = await saveTrack(track, "smart", signal, (received, total) => {
+          item.received = received;
+          if (total) item.total = total;
+          const now = Date.now();
+          if (now - lastReport < 200) return;
+          lastReport = now;
+          report({
+            phase: "downloading",
+            completed: added,
+            total: missing.length,
+            currentTitle: track.title,
+            items: snapshot(),
+          });
+        });
+        item.status = entry.hasAudio ? "ready" : "pinned";
+        item.received = entry.bytes;
+        if (entry.bytes) item.total = entry.bytes;
         added += 1;
       } catch {
-        /* retried on the next refresh */
+        item.status = "failed"; // retried on the next refresh, or by hand
       }
+      report({
+        phase: "downloading",
+        completed: added,
+        total: missing.length,
+        items: snapshot(),
+      });
     }
 
-    report({ phase: "pruning", completed: added, total: missing.length });
+    report({ phase: "pruning", completed: added, total: missing.length, items: snapshot() });
     await pruneTo(settings.limitBytes);
 
-    report({ phase: "done", completed: added, total: missing.length });
+    report({ phase: "done", completed: added, total: missing.length, items: snapshot() });
     return { added, removed };
+
   } finally {
     running = false;
   }
