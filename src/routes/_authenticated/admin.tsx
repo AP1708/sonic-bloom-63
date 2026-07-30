@@ -383,9 +383,59 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "ba
   );
 }
 
+function ExportButton({
+  label,
+  count,
+  onExport,
+}: {
+  label: string;
+  count: number;
+  onExport: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={count === 0}
+      onClick={onExport}
+      title={`Download ${count.toLocaleString()} rows as CSV`}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-surface-raised px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-40"
+    >
+      <Download className="size-3.5" /> {label}
+      <span className="text-[10px]">({count.toLocaleString()})</span>
+    </button>
+  );
+}
+
 function InsightsPanel() {
   const [range, setRange] = useState<InsightsRange>("24h");
   const { data, isLoading, error } = useAnalyticsInsights(range, true);
+
+  const exportEvents = (name: string, rows: InsightRow[]) => {
+    downloadCsv(
+      `sonance-${name}-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(rows, [
+        { key: "created_at", value: (row) => row.created_at },
+        { key: "event", value: (row) => row.event },
+        { key: "category", value: (row) => row.category },
+        { key: "source", value: (row) => row.source },
+        { key: "status", value: (row) => row.status },
+        { key: "reason", value: (row) => row.reason },
+        { key: "query", value: (row) => row.query },
+        { key: "title", value: (row) => row.title },
+        { key: "artist", value: (row) => row.artist },
+        { key: "duration_ms", value: (row) => row.duration_ms },
+        { key: "result_count", value: (row) => row.result_count },
+        { key: "strategy", value: (row) => (row.meta as { strategy?: unknown })?.strategy ?? "" },
+        { key: "meta", value: (row) => row.meta },
+      ]),
+    );
+    toast.success(`Exported ${rows.length.toLocaleString()} rows`);
+  };
+
+  const rows = data?.rows ?? [];
+  const searchRows = rows.filter((row) => row.category === "search");
+  const playbackRows = rows.filter((row) => row.category === "playback");
+  const fallbackRows = rows.filter((row) => row.category === "fallback");
 
   return (
     <section className="flex flex-col gap-6">
@@ -409,6 +459,49 @@ function InsightsPanel() {
           {data ? `${data.total.toLocaleString()} events` : ""}
         </span>
       </div>
+
+      {data && data.total > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="label-mono text-muted-foreground">Export CSV</span>
+          <ExportButton
+            label="Searches"
+            count={searchRows.length}
+            onExport={() => exportEvents("searches", searchRows)}
+          />
+          <ExportButton
+            label="Playback"
+            count={playbackRows.length}
+            onExport={() => exportEvents("playback", playbackRows)}
+          />
+          <ExportButton
+            label="Fallbacks"
+            count={fallbackRows.length}
+            onExport={() => exportEvents("fallbacks", fallbackRows)}
+          />
+          <ExportButton
+            label="Fallback summary"
+            count={data.fallbacks.length}
+            onExport={() => {
+              downloadCsv(
+                `sonance-fallback-summary-${range}.csv`,
+                toCsv(data.fallbacks, [
+                  { key: "from", value: (row) => row.from },
+                  { key: "to", value: (row) => row.to },
+                  { key: "reason", value: (row) => row.reason },
+                  { key: "count", value: (row) => row.count },
+                ]),
+              );
+              toast.success("Exported fallback summary");
+            }}
+          />
+          <ExportButton
+            label="All events"
+            count={rows.length}
+            onExport={() => exportEvents("events", rows)}
+          />
+        </div>
+      ) : null}
+
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading insights…</p>
