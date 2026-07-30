@@ -12,6 +12,8 @@ import { Artwork } from "@/components/music/artwork";
 import { usePlayer } from "@/components/player/player-provider";
 import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/catalog";
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
+import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
+import { feedSeed, seededSample, seededShuffle } from "@/lib/music/feed-seed";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
@@ -19,6 +21,7 @@ import { useSession } from "@/hooks/use-session";
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll";
 import { greeting } from "@/lib/format";
 import type { Track } from "@/lib/music/types";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
