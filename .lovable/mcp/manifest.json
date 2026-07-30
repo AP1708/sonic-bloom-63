@@ -1,0 +1,219 @@
+{
+  "version": 1,
+  "sdk_version": "0.25.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://iyjasdubjmbdpamieakc.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "harmony-hub-79",
+      "version": "0.1.0",
+      "title": "Harmony Hub (79)"
+    },
+    "tools": [
+      {
+        "name": "list_playlists",
+        "title": "List playlists",
+        "description": "List the signed-in IMUSIC user's playlists with track counts.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 25,
+              "description": "Max playlists to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_playlist_tracks",
+        "title": "List playlist tracks",
+        "description": "List the tracks inside one of the signed-in user's IMUSIC playlists.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "playlist_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Playlist id from list_playlists."
+            },
+            "limit": {
+              "default": 100,
+              "description": "Max tracks to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          "required": [
+            "playlist_id"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "list_liked_songs",
+        "title": "List liked songs",
+        "description": "List songs the signed-in IMUSIC user has liked, newest first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 50,
+              "description": "Max songs to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "recent_listening",
+        "title": "Recent listening history",
+        "description": "Show what the signed-in IMUSIC user recently played, newest first.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "limit": {
+              "default": 25,
+              "description": "Max plays to return.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "create_playlist",
+        "title": "Create playlist",
+        "description": "Create a new IMUSIC playlist owned by the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120,
+              "description": "Playlist title."
+            },
+            "description": {
+              "description": "Optional playlist description.",
+              "type": "string",
+              "maxLength": 500
+            },
+            "is_public": {
+              "default": false,
+              "description": "Whether the playlist is publicly visible.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "title"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_track_to_playlist",
+        "title": "Add track to playlist",
+        "description": "Append a track to one of the signed-in user's IMUSIC playlists.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "playlist_id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Target playlist id."
+            },
+            "track_id": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Track id from search or library results."
+            },
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Track title."
+            },
+            "artist": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Track artist."
+            },
+            "source": {
+              "default": "youtube-music",
+              "description": "Source provider, e.g. youtube-music, spotify, archive.",
+              "type": "string",
+              "minLength": 1
+            },
+            "duration_sec": {
+              "default": 0,
+              "description": "Track duration in seconds.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "playlist_id",
+            "track_id",
+            "title",
+            "artist"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
