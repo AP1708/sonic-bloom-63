@@ -138,7 +138,7 @@ export function EmptyState({
   return (
     <div className="surface-panel flex flex-col items-center gap-3 px-6 py-14 text-center">
       <MoreHorizontal className="size-5 text-muted-foreground" />
-      <h3 className="text-lg">{title}</h3>
+      <h2 className="text-lg">{title}</h2>
       <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
       {action}
     </div>

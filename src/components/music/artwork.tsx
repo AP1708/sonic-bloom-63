@@ -9,6 +9,8 @@ interface ArtworkProps {
   alt: string;
   className?: string;
   rounded?: string;
+  /** Mark above-the-fold artwork so it loads eagerly (LCP candidate). */
+  priority?: boolean;
 }
 
 /**

@@ -11,7 +11,7 @@ export function SectionHeader({
   title,
   caption,
   moreTo,
-  moreLabel = "More",
+  moreLabel = "Browse all",
   action,
 }: {
   title: string;
