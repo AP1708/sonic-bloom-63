@@ -158,3 +158,35 @@ export function useAccumulatedDiscovery(feed: DiscoveryFeed | undefined): Accumu
 
   return view;
 }
+
+/** How long a "New" marker stays on screen after a batch merges. */
+const MARKER_MS = 12_000;
+
+/**
+ * Keeps the newest batch's markers alive for a few seconds so a refresh is
+ * legible, then clears them (or immediately when a newer batch arrives).
+ */
+export function useFreshMarkers(feed: AccumulatedFeed): {
+  tracks: Set<string>;
+  artists: Set<string>;
+} {
+  const [markers, setMarkers] = useState<{ tracks: Set<string>; artists: Set<string> }>({
+    tracks: new Set(),
+    artists: new Set(),
+  });
+
+  useEffect(() => {
+    if (feed.freshKeys.size === 0 && feed.freshArtistKeys.size === 0) {
+      setMarkers({ tracks: new Set(), artists: new Set() });
+      return;
+    }
+    setMarkers({ tracks: feed.freshKeys, artists: feed.freshArtistKeys });
+    const timer = window.setTimeout(
+      () => setMarkers({ tracks: new Set(), artists: new Set() }),
+      MARKER_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [feed.batchId, feed.freshKeys, feed.freshArtistKeys]);
+
+  return markers;
+}
