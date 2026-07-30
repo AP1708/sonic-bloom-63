@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Play, RefreshCw, Shuffle } from "lucide-react";
 import { AppShell } from "@/components/layout/app-shell";
+import { ApkDownloadCard } from "@/components/android/apk-download-card";
 import { Carousel, SectionHeader } from "@/components/music/carousel";
 import { ChipRow, MOODS } from "@/components/music/chip-row";
 import { SongCard, MixCard } from "@/components/music/song-card";
@@ -549,7 +550,10 @@ function HomePage() {
           </section>
         ))}
 
+        <ApkDownloadCard />
+
         <div ref={sentinelRef} aria-hidden className="h-px" />
+
 
         {hasMore ? (
           <p className="pb-6 text-center text-xs text-muted-foreground" role="status">
