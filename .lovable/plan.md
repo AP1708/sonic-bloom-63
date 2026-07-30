@@ -1,48 +1,19 @@
-## Goal
+# Smart download progress & status
 
-An offline mix that keeps itself fresh: the app looks at what you've been listening to and which artists you play most, then downloads matching songs in the background so they're available with no connection.
+Today the Downloads page only shows a one-line text ("Downloading 3/12 · Title"). This adds a real progress bar plus a per-track status for every item in a refresh run.
 
-Note on what can actually be stored: only Archive/Indian-catalog tracks have a direct audio stream that can be saved offline. Spotify and YouTube tracks can be pinned (artwork + metadata cached so they appear and queue instantly), but their audio must still stream — their terms don't allow local copies. Smart Downloads will therefore prefer archive tracks for real offline audio and mark the rest as "streaming only".
+## What you'll see
 
-## 1. Offline store (new foundation — none exists today)
+- A **progress card** at the top of the smart-downloads panel while a refresh runs: a filled bar (completed / total), the phase label (Planning → Downloading → Tidying up → Done), count, and a Cancel button.
+- Each track in the run shows a **status chip**: Queued, Downloading (with its own per-file bar when the server reports a size), Ready, Failed, or Pinned (streaming-only sources such as Spotify/YouTube that can't store audio).
+- **Failed** items get a Retry button; the run summary stays visible after finishing so failures aren't lost.
+- The existing offline lists get the same chip so a track's state is obvious outside a run.
 
-New `src/lib/offline/store.ts` on IndexedDB (`sonance-offline`):
+## Technical details
 
-- `tracks` — track metadata + reason (`manual` | `smart`) + timestamps
-- `audio` — audio Blobs keyed by track id
-- `artwork` — small image Blobs
+1. `src/lib/offline/store.ts` — `saveTrack` gains an optional `onBytes(received, total)` callback: read the fetch `Response.body` reader stream instead of `.blob()` so byte-level progress is available; fall back to `.blob()` when the body isn't streamable. Distinguish "no audio URL" (pinned) from "fetch failed" by throwing on failure instead of silently storing a 0-byte entry.
+2. `src/lib/offline/smart-downloads.ts` — extend `SmartDownloadProgress` with `items: { id, title, artist, status: 'queued'|'downloading'|'ready'|'failed'|'pinned', received, total }[]`. Emit the full planned list at the end of the planning phase (all `queued`), then update per item as the loop runs. Keep the existing `phase/completed/total` fields so current UI keeps working.
+3. `src/hooks/use-offline.ts` — hold the item list in state, keep the last run's result after `phase: 'done'` instead of resetting straight to `idle`, expose `cancelRefresh()` (an `AbortController` passed as `signal`) and `retryItem(id)` that calls `saveTrack(track, 'smart')` for a single failed track.
+4. `src/routes/_authenticated/downloads.tsx` — new `DownloadProgressCard` and `StatusChip` components rendering the above; reuse existing `StorageMeter` styling and semantic tokens (no hardcoded colors).
 
-API: `saveTrack`, `getAudioBlob`, `listOffline`, `removeTrack`, `usageBytes`, `pruneTo(limitBytes)`.
-
-`src/hooks/use-offline.ts` exposes the list, per-track download state, and totals; the player checks the store first and plays a blob URL when present, so downloaded songs work with no network.
-
-## 2. Listening history
-
-`recently_played` already exists but is capped and unweighted. Add a `listening_history` table (user, track metadata, played_at, seconds_played, completed) written by the existing play-tracking path in `player-provider.tsx`.
-
-Derive an artist affinity score: recent plays weigh more (time decay), completed plays more than skips. Exposed via `src/lib/music/taste.ts` as `topArtists()` and `topTracks()`.
-
-## 3. Smart Downloads engine
-
-`src/lib/offline/smart-downloads.ts`:
-
-1. Build a target list: recent favourites + liked songs + top-artist tracks pulled through the existing `findRelatedTracks` / `searchAll` abstraction.
-2. Rank by affinity, keep the top N that fit the storage budget, preferring downloadable archive tracks.
-3. Diff against what's already stored: download what's new, delete smart items that fell out of the list (manual downloads are never auto-deleted).
-4. Run on app start (if stale > 12h), on reconnect, and via a manual "Refresh now" — always de-bounced, and it defers when the browser reports a metered/save-data connection.
-
-Downloads run sequentially with progress, and failures are silent retries next cycle.
-
-## 4. UI
-
-- New route `/downloads`: storage meter, "Smart mix" section (auto-managed) and "Your downloads" (manual), each row with a remove action and an offline badge.
-- Settings block on the same page: enable Smart Downloads, storage limit slider (500 MB / 1 GB / 2 GB / custom), Wi-Fi-only toggle, refresh frequency.
-- Download / Remove download action added to the existing `TrackMenu`, plus an offline indicator in `TrackRow` and the player bar.
-- Sidebar link with a small "offline ready" count.
-
-## Technical notes
-
-- Schema change: one new table with RLS scoped to `auth.uid()` and grants for `authenticated`.
-- Playback: `resolve-playback.ts` gains an offline-first branch before any provider resolution.
-- Storage safety: request `navigator.storage.persist()`, respect `estimate()` quota, prune oldest smart items first.
-- No copyrighted audio is ever stored — only public-domain archive streams; Spotify/YouTube entries stay metadata-only.
+No database or backend changes.
