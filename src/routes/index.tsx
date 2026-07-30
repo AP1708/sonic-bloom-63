@@ -67,8 +67,8 @@ function HomePage() {
   const [mood, setMood] = useState("all");
   const keywords = MOODS.find((m) => m.id === mood)?.keywords ?? [];
 
-  /** Rotates each time the app is opened, so the feed is never the same twice. */
-  const seed = feedSeed();
+  /** Rotates on every app open (and after a long time away). */
+  const seed = useFeedSeed();
   /** Seeded pick helper — `salt` keeps each rail distinct within a session. */
   const sample = useMemo(
     () =>
@@ -82,8 +82,18 @@ function HomePage() {
     [history],
   );
 
+  // A different mood is a different feed, so accumulated rails start over.
+  useEffect(() => {
+    resetDiscoveryStore();
+  }, [mood]);
+
   /** Live suggestions from the YouTube Music catalog — new songs and artists. */
-  const { data: discovery, isLoading: discoveryLoading } = useQuery({
+  const {
+    data: discoveryBatch,
+    isLoading: discoveryLoading,
+    isFetching: discoveryFetching,
+    refetch: refetchDiscovery,
+  } = useQuery({
     queryKey: ["discovery-feed", seed, mood, affinityArtists.join("|")],
     queryFn: () =>
       getDiscoveryFeed({
@@ -93,9 +103,23 @@ function HomePage() {
           mood: MOODS.find((m) => m.id === mood)?.label.toLowerCase() ?? "",
         },
       }),
-    staleTime: 5 * 60 * 1000,
+    // The seed already gates how often new results appear; within a seed the
+    // response is stable, but focus/mount refetches let a rotation land fast.
+    staleTime: 60 * 1000,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
+    placeholderData: keepPreviousData,
     retry: 1,
   });
+
+  /** Batches merge into a growing feed instead of replacing it. */
+  const discovery = useAccumulatedDiscovery(discoveryBatch);
+
+  const refreshFeed = () => {
+    rotateFeedSeed();
+    void refetchDiscovery();
+  };
+
 
   const pool = useMemo<Track[]>(() => {
     const base = catalog?.tracks?.length ? catalog.tracks : DEMO_TRACKS;
