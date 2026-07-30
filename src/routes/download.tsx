@@ -47,9 +47,19 @@ export const Route = createFileRoute("/download")({
   component: DownloadPage,
 });
 
-function shaFrom(notes: string | null) {
-  const match = notes?.match(/SHA-256:\s*`?([a-f0-9]{64})`?/i);
+function shaFrom(notes: string | null, fileName?: string) {
+  if (!notes) return null;
+  if (fileName) {
+    // Release notes list one "`file.apk` — SHA-256: `hash`" line per build.
+    const escaped = fileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const perFile = notes.match(
+      new RegExp(`${escaped}[^\\n]*?SHA-256:\\s*\`?([a-f0-9]{64})\`?`, "i"),
+    );
+    if (perFile?.[1]) return perFile[1];
+  }
+  const match = notes.match(/SHA-256:\s*`?([a-f0-9]{64})`?/i);
   return match?.[1] ?? null;
+
 }
 
 function DownloadPage() {
