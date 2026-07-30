@@ -12,15 +12,24 @@ export function SongCard({
   onPlay,
   width = "w-40 sm:w-44",
   subtitle,
+  isNew,
+  index = 0,
 }: {
   track: Track;
   playing?: boolean;
   onPlay: () => void;
   width?: string;
   subtitle?: string;
+  /** Marks a song appended by the latest discovery refresh. */
+  isNew?: boolean;
+  /** Position in the rail — staggers the entrance animation. */
+  index?: number;
 }) {
   return (
-    <article className={cn("group flex shrink-0 snap-start flex-col gap-2", width)}>
+    <article
+      className={cn("group flex shrink-0 snap-start flex-col gap-2", width, isNew && "card-enter")}
+      style={isNew ? { animationDelay: `${Math.min(index, 8) * 40}ms` } : undefined}
+    >
       <div className="lift-on-hover relative">
         <Artwork
           seed={track.id}
@@ -29,6 +38,11 @@ export function SongCard({
           className="aspect-square w-full"
         />
         <PlayOverlay playing={Boolean(playing)} onClick={onPlay} />
+        {isNew && (
+          <span className="fresh-pill label-mono pointer-events-none absolute left-2 top-2 rounded-full bg-primary px-2 py-0.5 text-[10px] text-primary-foreground shadow">
+            New
+          </span>
+        )}
       </div>
       <div className="flex flex-col gap-1">
         <p className="truncate text-sm font-medium">{track.title}</p>

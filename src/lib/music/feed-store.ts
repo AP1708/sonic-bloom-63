@@ -23,9 +23,15 @@ export interface AccumulatedFeed {
   fresh: Track[];
   /** How many batches have been merged so far this session. */
   batches: number;
+  /** Track keys added by the latest batch (empty for the very first batch). */
+  freshKeys: Set<string>;
+  /** Artist names (lowercased) added by the latest batch. */
+  freshArtistKeys: Set<string>;
+  /** Increments with every merged batch — used to reset marker timers. */
+  batchId: number;
 }
 
-function trackKey(track: Track): string {
+export function trackKey(track: Track): string {
   return `${track.title.toLowerCase().trim()}|${track.artist.toLowerCase().trim()}`;
 }
 
@@ -36,6 +42,8 @@ interface Store {
   artistSeen: Set<string>;
   fresh: Track[];
   batches: number;
+  freshKeys: Set<string>;
+  freshArtistKeys: Set<string>;
 }
 
 function emptyStore(): Store {
@@ -46,6 +54,8 @@ function emptyStore(): Store {
     artistSeen: new Set(),
     fresh: [],
     batches: 0,
+    freshKeys: new Set(),
+    freshArtistKeys: new Set(),
   };
 }
 
@@ -59,6 +69,9 @@ function snapshot(): AccumulatedFeed {
     artists: store.artists,
     fresh: store.fresh,
     batches: store.batches,
+    freshKeys: store.freshKeys,
+    freshArtistKeys: store.freshArtistKeys,
+    batchId: store.batches,
   };
 }
 
@@ -106,15 +119,21 @@ function mergeBatch(feed: DiscoveryFeed) {
     });
   }
 
+  const freshArtists = new Set<string>();
   for (const artist of feed.artists) {
     const key = artist.name.toLowerCase().trim();
     if (store.artistSeen.has(key)) continue;
     store.artistSeen.add(key);
+    freshArtists.add(key);
     store.artists = [...store.artists, artist].slice(0, MAX_ARTISTS);
   }
 
   store.fresh = freshThisBatch.slice(0, MAX_FRESH);
   store.batches += 1;
+  // The very first batch is entirely new — marking all of it would be noise.
+  const firstBatch = store.batches === 1;
+  store.freshKeys = firstBatch ? new Set() : new Set(freshThisBatch.map(trackKey));
+  store.freshArtistKeys = firstBatch ? new Set() : freshArtists;
 }
 
 /**
@@ -138,4 +157,36 @@ export function useAccumulatedDiscovery(feed: DiscoveryFeed | undefined): Accumu
   }, [feed]);
 
   return view;
+}
+
+/** How long a "New" marker stays on screen after a batch merges. */
+const MARKER_MS = 12_000;
+
+/**
+ * Keeps the newest batch's markers alive for a few seconds so a refresh is
+ * legible, then clears them (or immediately when a newer batch arrives).
+ */
+export function useFreshMarkers(feed: AccumulatedFeed): {
+  tracks: Set<string>;
+  artists: Set<string>;
+} {
+  const [markers, setMarkers] = useState<{ tracks: Set<string>; artists: Set<string> }>({
+    tracks: new Set(),
+    artists: new Set(),
+  });
+
+  useEffect(() => {
+    if (feed.freshKeys.size === 0 && feed.freshArtistKeys.size === 0) {
+      setMarkers({ tracks: new Set(), artists: new Set() });
+      return;
+    }
+    setMarkers({ tracks: feed.freshKeys, artists: feed.freshArtistKeys });
+    const timer = window.setTimeout(
+      () => setMarkers({ tracks: new Set(), artists: new Set() }),
+      MARKER_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [feed.batchId, feed.freshKeys, feed.freshArtistKeys]);
+
+  return markers;
 }

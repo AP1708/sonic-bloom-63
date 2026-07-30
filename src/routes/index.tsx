@@ -14,7 +14,12 @@ import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
 import { rotateFeedSeed, seededSample, seededShuffle, useFeedSeed } from "@/lib/music/feed-seed";
-import { resetDiscoveryStore, useAccumulatedDiscovery } from "@/lib/music/feed-store";
+import {
+  resetDiscoveryStore,
+  trackKey,
+  useAccumulatedDiscovery,
+  useFreshMarkers,
+} from "@/lib/music/feed-store";
 import { topArtists } from "@/lib/music/taste";
 import { useLikedSongs, useRecentlyPlayed } from "@/hooks/use-library";
 import { useListeningHistory } from "@/hooks/use-listening-history";
@@ -114,6 +119,8 @@ function HomePage() {
 
   /** Batches merge into a growing feed instead of replacing it. */
   const discovery = useAccumulatedDiscovery(discoveryBatch);
+  /** Short-lived markers on whatever the latest refresh appended. */
+  const freshMarkers = useFreshMarkers(discovery);
 
   const refreshFeed = () => {
     rotateFeedSeed();
@@ -337,7 +344,15 @@ function HomePage() {
 
         {/* Fresh suggestions pulled live from YouTube Music on every open. */}
         <div className="flex items-center justify-between gap-3">
-          <p className="text-xs text-muted-foreground" aria-live="polite">
+          <p
+            key={`feed-status-${discovery.batchId}`}
+            className={`text-xs text-muted-foreground ${
+              !discoveryFetching && discovery.batches > 1 && discovery.fresh.length > 0
+                ? "fresh-flash"
+                : ""
+            }`}
+            aria-live="polite"
+          >
             {discoveryFetching
               ? "Refreshing your picks…"
               : discovery.batches > 1 && discovery.fresh.length > 0
@@ -374,10 +389,12 @@ function HomePage() {
           <section key={rail.id} className="flex flex-col gap-4">
             <SectionHeader caption={rail.caption} title={rail.title} moreTo="/search" />
             <Carousel>
-              {rail.tracks.map((track) => (
+              {rail.tracks.map((track, index) => (
                 <SongCard
                   key={`${rail.id}-${track.id}`}
                   track={track}
+                  index={index}
+                  isNew={freshMarkers.tracks.has(trackKey(track))}
                   playing={player.isPlaying && player.current?.id === track.id}
                   onPlay={() => player.playTrack(track, rail.tracks)}
                 />
@@ -390,13 +407,15 @@ function HomePage() {
           <section className="flex flex-col gap-4">
             <SectionHeader caption="Artists you haven't heard yet" title="New artists for you" />
             <Carousel>
-              {newArtists.map((artist) => (
+              {newArtists.map((artist, index) => (
                 <ArtistCard
                   key={artist.name}
                   id={artistSlug(artist.name)}
                   name={artist.name}
                   caption="Start radio"
                   imageUrl={artist.artworkUrl}
+                  index={index}
+                  isNew={freshMarkers.artists.has(artist.name.toLowerCase().trim())}
                   onPlay={() =>
                     player.playTrack(
                       artist.sample,
@@ -513,10 +532,12 @@ function HomePage() {
           <section key={section.id} className="flex flex-col gap-4">
             <SectionHeader caption={section.caption} title={section.title} />
             <Carousel>
-              {section.tracks.map((track) => (
+              {section.tracks.map((track, index) => (
                 <SongCard
                   key={`${section.id}-${track.id}`}
                   track={track}
+                  index={index}
+                  isNew={freshMarkers.tracks.has(trackKey(track))}
                   playing={player.isPlaying && player.current?.id === track.id}
                   onPlay={() => player.playTrack(track, section.tracks)}
                 />
