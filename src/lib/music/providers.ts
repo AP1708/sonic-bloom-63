@@ -20,12 +20,25 @@ import type { MusicSource, SearchOptions, SearchResults, Track } from "./types";
  *   `externalUrl` back to the source platform for attribution.
  */
 
+export interface ProviderSearchMeta {
+  /** Which internal path served the results (YouTube Music only, for now). */
+  strategy?: string;
+  /** Why the result set is empty or degraded. */
+  reason?: string;
+}
+
 export interface MusicProvider {
   id: MusicSource;
   label: string;
   isConfigured(): boolean;
   search(query: string, options?: SearchOptions): Promise<Track[]>;
+  /** Optional richer variant used for analytics tagging. */
+  searchWithMeta?(
+    query: string,
+    options?: SearchOptions,
+  ): Promise<{ tracks: Track[] } & ProviderSearchMeta>;
 }
+
 
 function matches(track: Track, query: string) {
   const q = query.trim().toLowerCase();
