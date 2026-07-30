@@ -131,7 +131,12 @@ export function useApkDownload(release: ApkRelease | null) {
         status: "ok",
         meta: { version: release.version, bytes: blob.size },
       });
-      toast.success("APK downloaded", { description: `IMUSIC v${release.version} is ready to install.` });
+      toast.success("APK downloaded", {
+        description: `IMUSIC v${release.version} is ready to install.`,
+        duration: 10000,
+        action: { label: "Open install page", onClick: openInstallPage },
+      });
+      notifyComplete(release.version);
     } catch (caught) {
       if (abort.signal.aborted || (caught as Error)?.name === "AbortError") {
         setProgress((current) =>
