@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      analytics_events: {
+        Row: {
+          artist: string | null
+          category: string
+          client: string
+          created_at: string
+          duration_ms: number | null
+          event: string
+          id: string
+          meta: Json
+          query: string | null
+          reason: string | null
+          result_count: number | null
+          source: string | null
+          status: string
+          title: string | null
+          track_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          artist?: string | null
+          category: string
+          client?: string
+          created_at?: string
+          duration_ms?: number | null
+          event: string
+          id?: string
+          meta?: Json
+          query?: string | null
+          reason?: string | null
+          result_count?: number | null
+          source?: string | null
+          status?: string
+          title?: string | null
+          track_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          artist?: string | null
+          category?: string
+          client?: string
+          created_at?: string
+          duration_ms?: number | null
+          event?: string
+          id?: string
+          meta?: Json
+          query?: string | null
+          reason?: string | null
+          result_count?: number | null
+          source?: string | null
+          status?: string
+          title?: string | null
+          track_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       liked_songs: {
         Row: {
           artist: string

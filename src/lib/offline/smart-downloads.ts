@@ -1,4 +1,5 @@
 import type { Track } from "@/lib/music/types";
+import { track as trackEvent } from "@/lib/analytics/events";
 import { loadFullCatalog, artistSlug } from "@/lib/music/full-catalog";
 import { findRelatedTracks } from "@/lib/music/related";
 import { artistAffinityScore, topArtists, topTracks, type HistoryEntry } from "@/lib/music/taste";
@@ -148,6 +149,8 @@ export async function runSmartDownloads(input: SmartDownloadInput): Promise<Smar
   }
 
   running = true;
+  const startedAt = Date.now();
+  trackEvent({ event: "offline.refresh_started", category: "offline" });
   try {
     report({ phase: "planning", completed: 0, total: 0 });
     void requestPersistence();
@@ -228,8 +231,30 @@ export async function runSmartDownloads(input: SmartDownloadInput): Promise<Smar
         item.received = entry.bytes;
         if (entry.bytes) item.total = entry.bytes;
         added += 1;
-      } catch {
+        trackEvent({
+          event: entry.hasAudio ? "offline.item_ready" : "offline.pinned",
+          category: "offline",
+          source: track.source,
+          trackId: track.id,
+          title: track.title,
+          artist: track.artist,
+          status: entry.hasAudio ? "ok" : "degraded",
+          reason: entry.hasAudio ? null : "metadata_only",
+          meta: { bytes: entry.bytes },
+        });
+      } catch (error) {
         item.status = "failed"; // retried on the next refresh, or by hand
+        trackEvent({
+          event: "offline.item_failed",
+          category: "offline",
+          source: track.source,
+          trackId: track.id,
+          title: track.title,
+          artist: track.artist,
+          status: "error",
+          reason: error instanceof Error ? error.message : "download_failed",
+          meta: { bytes: item.received },
+        });
       }
       report({
         phase: "downloading",
@@ -243,6 +268,13 @@ export async function runSmartDownloads(input: SmartDownloadInput): Promise<Smar
     await pruneTo(settings.limitBytes);
 
     report({ phase: "done", completed: added, total: missing.length, items: snapshot() });
+    trackEvent({
+      event: "offline.refresh_completed",
+      category: "offline",
+      durationMs: Date.now() - startedAt,
+      resultCount: added,
+      meta: { removed, attempted: missing.length },
+    });
     return { added, removed };
 
   } finally {

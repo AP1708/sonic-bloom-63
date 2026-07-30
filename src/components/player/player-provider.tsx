@@ -28,6 +28,12 @@ import { useMediaSession } from "@/hooks/use-media-session";
 import { findRelatedTracks } from "@/lib/music/related";
 import { useOfflineAudioUrl } from "@/hooks/use-offline";
 import { recordListen } from "@/hooks/use-listening-history";
+import {
+  flushAnalytics,
+  newResolveId,
+  setAnalyticsUser,
+  track as trackEvent,
+} from "@/lib/analytics/events";
 
 
 export type SidePanel = "queue" | "lyrics" | null;
@@ -238,6 +244,91 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setYtBuffering(false);
   }, [trackId]);
 
+  // ---- Usage & diagnostics tagging ----
+  // Every source decision is tagged so playback problems can be traced end to
+  // end: which sources were tried, which one won, and why the others didn't.
+  useEffect(() => {
+    setAnalyticsUser(user?.id ?? null);
+    return () => flushAnalytics();
+  }, [user?.id]);
+
+  const resolveIdRef = useRef<string>("");
+  const trackMetaRef = useRef<Track | null>(null);
+  trackMetaRef.current = state.current;
+
+  const tagPlayback = useCallback(
+    (
+      event: string,
+      extra: {
+        status?: "ok" | "degraded" | "error";
+        reason?: string | null;
+        source?: "spotify" | "stream" | "youtube" | "preview" | "offline" | null;
+        durationMs?: number | null;
+        meta?: Record<string, unknown>;
+      } = {},
+    ) => {
+      const current = trackMetaRef.current;
+      if (!current) return;
+      trackEvent({
+        event,
+        category: "playback",
+        source: extra.source ?? null,
+        trackId: current.id,
+        title: current.title,
+        artist: current.artist,
+        status: extra.status ?? "ok",
+        reason: extra.reason ?? null,
+        durationMs: extra.durationMs ?? null,
+        meta: { resolveId: resolveIdRef.current, origin: current.source, ...(extra.meta ?? {}) },
+      });
+    },
+    [],
+  );
+
+  const tagRef = useRef(tagPlayback);
+  tagRef.current = tagPlayback;
+
+  // New track: start a fresh resolve chain.
+  const resolveStartedRef = useRef(0);
+  useEffect(() => {
+    if (!trackId) return;
+    resolveIdRef.current = newResolveId();
+    resolveStartedRef.current = Date.now();
+    tagRef.current("playback.resolve_started");
+  }, [trackId]);
+
+  // First playable source for this track.
+  const resolvedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!trackId || !activeSource) return;
+    if (resolvedForRef.current === trackId) return;
+    resolvedForRef.current = trackId;
+    tagRef.current("playback.resolved", {
+      source: activeSource,
+      durationMs: Date.now() - resolveStartedRef.current,
+      meta: { offline: Boolean(offlineAudioUrl) },
+    });
+  }, [trackId, activeSource, offlineAudioUrl]);
+
+  // Actually started producing sound.
+  const startedForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!trackId || !state.isPlaying || !activeSource) return;
+    if (startedForRef.current === trackId) return;
+    startedForRef.current = trackId;
+    tagRef.current("playback.started", { source: activeSource });
+  }, [trackId, state.isPlaying, activeSource]);
+
+  useEffect(() => {
+    if (status !== "buffering") return;
+    tagRef.current("playback.buffering", { status: "degraded", source: activeSource });
+  }, [status, activeSource]);
+
+  useEffect(() => {
+    if (status !== "unavailable") return;
+    tagRef.current("playback.unavailable", { status: "error", reason: "no_source" });
+  }, [status]);
+
   /** Clears failure memory for the current track and re-runs source resolution. */
   const retrySource = useCallback(() => {
     const track = state.current;
@@ -264,6 +355,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const track = state.current;
       if (!track) return;
       if (status === "buffering") {
+        tagRef.current("playback.stalled", {
+          status: "error",
+          reason: "watchdog_timeout",
+          source: currentVideoId ? "youtube" : directAudioUrl ? "stream" : null,
+        });
         if (currentVideoId) {
           setDeadVideos((prev) => (prev.includes(currentVideoId) ? prev : [...prev, currentVideoId]));
         } else if (directAudioUrl) {
@@ -271,6 +367,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
+      tagRef.current("playback.resolve_timeout", { status: "error", reason: "watchdog_timeout" });
       // Resolution never came back — record an empty result so the UI stops spinning.
       if (!youtubeLookupDone) setResolvedVideoId({ trackId: track.id, videoId: null });
       if (!spotifyLookupDone) setResolvedSpotify({ trackId: track.id, uri: null });
@@ -288,6 +385,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         const nextIndex = (prev.index + 1) % prev.queue.length;
         return { ...prev, index: nextIndex, current: prev.queue[nextIndex], progressSec: 0 };
       });
+      tagRef.current("playback.auto_skipped", { status: "error", reason: "no_source" });
       toast("Skipping unplayable track", {
         description: track ? `No stream available for “${track.title}”.` : undefined,
       });
@@ -307,7 +405,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (resolvedSpotify?.trackId === track.id) return;
 
     let cancelled = false;
-    void resolveSpotifyUri(track).then((uri) => {
+    void resolveSpotifyUri(track, resolveIdRef.current).then((uri) => {
       if (cancelled) return;
       setResolvedSpotify({ trackId: track.id, uri });
     });
@@ -323,7 +421,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!track || directAudioUrl || ownVideoId) return;
     if (resolvedVideoId?.trackId === track.id) return;
     let cancelled = false;
-    void resolveYouTubeVideoId(track).then((videoId) => {
+    void resolveYouTubeVideoId(track, resolveIdRef.current).then((videoId) => {
       if (cancelled) return;
       setResolvedVideoId({ trackId: track.id, videoId });
       if (!videoId && !track.previewUrl && !spotifyUri) {
@@ -376,6 +474,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   /** Advance the queue when a track finishes (shared by the audio element and the clock). */
   const handleEnded = useCallback(() => {
+    tagRef.current("playback.completed");
     setState((prev) => {
       if (!prev.current) return prev;
       if (userRef.current && prev.repeat !== "one") {
@@ -451,6 +550,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           onError: () => {
             const dead = videoIdRef.current;
             if (!dead) return;
+            tagRef.current("playback.error", {
+              status: "error",
+              source: "youtube",
+              reason: "video_unplayable",
+              meta: { videoId: dead },
+            });
             setDeadVideos((prev) => (prev.includes(dead) ? prev : [...prev, dead]));
           },
         },
@@ -557,6 +662,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       spotifyActiveRef.current = ok;
       setSpotifyStreaming(ok);
+      if (!ok) {
+        tagRef.current("playback.error", {
+          status: "degraded",
+          source: "spotify",
+          reason: "sdk_unavailable",
+        });
+      }
       if (!ok) {
         toast("Playing an alternate source", {
           description: "Spotify in-app streaming needs Premium — using a matching stream instead.",
@@ -808,6 +920,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           if (audioRef.current && audioRef.current.src) audioRef.current.currentTime = clamped;
           if (videoIdRef.current) ytPlayerRef.current?.seekTo(clamped, true);
           if (spotifyActiveRef.current) void spotifyPlayback.seek(clamped);
+          tagRef.current("playback.seek", { meta: { positionSec: Math.round(clamped) } });
 
           return { ...prev, progressSec: clamped };
         }),
@@ -917,6 +1030,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           // A dead archive stream shouldn't stop playback: drop the direct URL so
           // the Spotify / YouTube resolvers take over for this track.
           setAudioBuffering(false);
+          tagRef.current("playback.error", {
+            status: "error",
+            source: "stream",
+            reason: "stream_error",
+          });
           const track = state.current;
           if (track && rawAudioUrl && !currentVideoId) {
             setDeadAudio((prev) => (prev.includes(track.id) ? prev : [...prev, track.id]));

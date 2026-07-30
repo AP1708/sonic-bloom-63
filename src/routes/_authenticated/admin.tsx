@@ -16,6 +16,11 @@ import {
   useSuspendUser,
 } from "@/hooks/use-admin";
 import { cn } from "@/lib/utils";
+import {
+  strategyLabel,
+  useAnalyticsInsights,
+  type InsightsRange,
+} from "@/hooks/use-analytics-insights";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
@@ -29,7 +34,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
-type Tab = "users" | "content";
+type Tab = "users" | "content" | "insights";
 
 function AdminPage() {
   const { user } = useSession();
@@ -67,7 +72,7 @@ function AdminPage() {
         </header>
 
         <div className="flex gap-2">
-          {(["users", "content"] as Tab[]).map((value) => (
+          {(["users", "content", "insights"] as Tab[]).map((value) => (
             <button
               key={value}
               type="button"
@@ -79,12 +84,22 @@ function AdminPage() {
                   : "bg-surface-raised text-muted-foreground hover:text-foreground",
               )}
             >
-              {value === "users" ? "Users & roles" : "Playlist moderation"}
+              {value === "users"
+                ? "Users & roles"
+                : value === "content"
+                  ? "Playlist moderation"
+                  : "Insights"}
             </button>
           ))}
         </div>
 
-        {tab === "users" ? <UsersPanel adminId={user?.id} /> : <ContentPanel adminId={user?.id} />}
+        {tab === "users" ? (
+          <UsersPanel adminId={user?.id} />
+        ) : tab === "content" ? (
+          <ContentPanel adminId={user?.id} />
+        ) : (
+          <InsightsPanel />
+        )}
       </div>
     </AppShell>
   );
@@ -353,6 +368,124 @@ function ContentPanel({ adminId }: { adminId?: string }) {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+function Stat({ label, value, tone }: { label: string; value: number; tone?: "bad" }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface-raised p-4">
+      <p className="label-mono text-muted-foreground">{label}</p>
+      <p className={cn("mt-1 text-2xl", tone === "bad" && value > 0 && "text-destructive")}>
+        {value.toLocaleString()}
+      </p>
+    </div>
+  );
+}
+
+function InsightsPanel() {
+  const [range, setRange] = useState<InsightsRange>("24h");
+  const { data, isLoading, error } = useAnalyticsInsights(range, true);
+
+  return (
+    <section className="flex flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-2">
+        {(["24h", "7d", "30d"] as InsightsRange[]).map((value) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setRange(value)}
+            className={cn(
+              "rounded-lg px-3 py-1.5 text-xs transition-colors",
+              range === value
+                ? "bg-primary text-primary-foreground"
+                : "bg-surface-raised text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Last {value}
+          </button>
+        ))}
+        <span className="ml-auto text-xs text-muted-foreground">
+          {data ? `${data.total.toLocaleString()} events` : ""}
+        </span>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading insights…</p>
+      ) : error ? (
+        <p className="text-sm text-destructive">Could not load analytics.</p>
+      ) : !data || data.total === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No events recorded in this window yet. Search or play something and check back.
+        </p>
+      ) : (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label="Searches" value={data.searches} />
+            <Stat label="Search failures" value={data.searchFailures} tone="bad" />
+            <Stat label="Playback starts" value={data.playbackStarts} />
+            <Stat label="Playback errors" value={data.playbackFailures} tone="bad" />
+            <Stat label="Offline ready" value={data.offlineReady} />
+            <Stat label="Offline failed" value={data.offlineFailed} tone="bad" />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-xl border border-border bg-surface-raised p-4">
+              <h2 className="label-mono text-muted-foreground">Search strategy served</h2>
+              <ul className="mt-3 flex flex-col gap-2">
+                {data.strategies.length === 0 ? (
+                  <li className="text-sm text-muted-foreground">No strategy data.</li>
+                ) : (
+                  data.strategies.map((row) => (
+                    <li key={row.key} className="flex items-center justify-between text-sm">
+                      <span>{strategyLabel(row.key)}</span>
+                      <span className="text-muted-foreground">{row.count}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface-raised p-4">
+              <h2 className="label-mono text-muted-foreground">Source fallbacks</h2>
+              <ul className="mt-3 flex flex-col gap-2">
+                {data.fallbacks.length === 0 ? (
+                  <li className="text-sm text-muted-foreground">No fallbacks recorded.</li>
+                ) : (
+                  data.fallbacks.map((row) => (
+                    <li key={row.key} className="flex items-center justify-between gap-3 text-sm">
+                      <span className="truncate">
+                        {row.from} → {row.to}
+                        <span className="ml-2 text-xs text-muted-foreground">{row.reason}</span>
+                      </span>
+                      <span className="text-muted-foreground">{row.count}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-surface-raised p-4">
+            <h2 className="label-mono text-muted-foreground">Recent errors</h2>
+            {data.errors.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">No errors — nice.</p>
+            ) : (
+              <ul className="mt-3 flex flex-col gap-2">
+                {data.errors.map((row, index) => (
+                  <li key={`${row.created_at}-${index}`} className="text-sm">
+                    <span className="font-medium">{row.event}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {row.source ?? "—"} · {row.reason ?? "unknown"}
+                      {row.title ? ` · ${row.title}` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
     </section>
   );
 }

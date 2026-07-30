@@ -15,6 +15,21 @@ interface SearchInput {
   limit?: number;
 }
 
+/** Which code path actually served the results — the key troubleshooting signal. */
+export type YouTubeSearchStrategy =
+  | "cache"
+  | "ytm_innertube"
+  | "keyless_web"
+  | "data_api"
+  | "none";
+
+export interface YouTubeSearchResult {
+  tracks: Track[];
+  strategy: YouTubeSearchStrategy;
+  /** Set when results are empty or degraded (e.g. "quota_exhausted"). */
+  reason?: string;
+}
+
 function parseIsoDuration(value: string): number {
   const match = /^P(?:(\d+)D)?T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(value ?? "");
   if (!match) return 0;
@@ -56,7 +71,7 @@ export const searchYouTube = createServerFn({ method: "GET" })
     query: String(input?.query ?? "").slice(0, 200),
     limit: Math.min(Math.max(Number(input?.limit ?? 20), 1), 50),
   }))
-  .handler(async ({ data }): Promise<Track[]> => {
+  .handler(async ({ data }): Promise<YouTubeSearchResult> => {
     const {
       cacheKey,
       readCache,
@@ -70,21 +85,25 @@ export const searchYouTube = createServerFn({ method: "GET" })
       youtubeMusicSearch,
     } = await import("./youtube.server");
 
-    if (!data.query.trim()) return [];
+    if (!data.query.trim()) return { tracks: [], strategy: "none", reason: "empty_query" };
 
     const key = cacheKey(data.query, data.limit);
     const cached = readCache(key);
-    if (cached) return cached;
+    if (cached) return { tracks: cached, strategy: "cache" };
 
     return dedupe(key, async () => {
+      let musicFailure: string | null = null;
+
       // Primary source: YouTube Music (songs only, no quota).
       try {
         const songs = await youtubeMusicSearch(data.query, data.limit);
         if (songs.length) {
           writeCache(key, songs);
-          return songs;
+          return { tracks: songs, strategy: "ytm_innertube" as const };
         }
+        musicFailure = "ytm_no_results";
       } catch (error) {
+        musicFailure = "ytm_request_failed";
         console.error(`YouTube Music search failed: ${(error as Error).message}`);
       }
 
@@ -93,16 +112,20 @@ export const searchYouTube = createServerFn({ method: "GET" })
         try {
           const tracks = await innertubeSearch(data.query, data.limit);
           writeCache(key, tracks);
-          return tracks;
+          return {
+            tracks,
+            strategy: "keyless_web" as const,
+            reason: musicFailure ?? undefined,
+          };
         } catch (error) {
           console.error(`YouTube keyless search failed: ${(error as Error).message}`);
           writeQuotaMiss(key);
-          return [];
+          return { tracks: [], strategy: "none" as const, reason: "keyless_failed" };
         }
       }
       return apiSearch();
 
-      async function apiSearch(): Promise<Track[]> {
+      async function apiSearch(): Promise<YouTubeSearchResult> {
         const keys = availableApiKeys();
 
 
@@ -153,7 +176,7 @@ export const searchYouTube = createServerFn({ method: "GET" })
         const items = (searchJson.items ?? []).filter((item) => item.id?.videoId);
         if (!items.length) {
           writeCache(key, []);
-          return [];
+          return { tracks: [], strategy: "data_api", reason: "api_no_results" };
         }
 
         // Second call: durations (not returned by search). Reuse the same key;
@@ -191,7 +214,7 @@ export const searchYouTube = createServerFn({ method: "GET" })
           };
         });
         writeCache(key, tracks);
-        return tracks;
+        return { tracks, strategy: "data_api" as const, reason: musicFailure ?? undefined };
       }
 
       // Every key failed (usually the 100-search/day quota). Fall back to
@@ -202,13 +225,13 @@ export const searchYouTube = createServerFn({ method: "GET" })
         const tracks = await innertubeSearch(data.query, data.limit);
         if (tracks.length) {
           writeCache(key, tracks);
-          return tracks;
+          return { tracks, strategy: "keyless_web" as const, reason: "quota_exhausted" };
         }
       } catch (error) {
         console.error(`YouTube keyless fallback failed: ${(error as Error).message}`);
       }
       writeQuotaMiss(key);
-      return [];
+      return { tracks: [], strategy: "none" as const, reason: "quota_exhausted" };
       }
     });
   });
