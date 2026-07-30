@@ -3,10 +3,19 @@ import { refreshAccessToken } from "./spotify.server";
 
 /** Server-only Spotify Web API calls made on behalf of a linked listener. */
 
-export async function spotifyUserToken(userId: string): Promise<string> {
+/**
+ * Returns a currently-valid access token for a linked listener, refreshing it
+ * from the encrypted refresh token when needed. The refresh token itself never
+ * leaves the server.
+ */
+export async function spotifyUserSession(
+  userId: string,
+): Promise<{ accessToken: string; expiresAt: number }> {
   const row = await readConnection(userId, "spotify");
   if (!row) throw new Error("Spotify account is not connected.");
-  if (row.tokens.expiresAt > Date.now() + 60_000) return row.tokens.accessToken;
+  if (row.tokens.expiresAt > Date.now() + 60_000) {
+    return { accessToken: row.tokens.accessToken, expiresAt: row.tokens.expiresAt };
+  }
   if (!row.tokens.refreshToken) {
     throw new Error("Spotify session expired — please reconnect your account.");
   }
@@ -23,8 +32,13 @@ export async function spotifyUserToken(userId: string): Promise<string> {
     scopes: row.scopes,
     tokens,
   });
-  return tokens.accessToken;
+  return { accessToken: tokens.accessToken, expiresAt: tokens.expiresAt };
 }
+
+export async function spotifyUserToken(userId: string): Promise<string> {
+  return (await spotifyUserSession(userId)).accessToken;
+}
+
 
 async function spFetch(token: string, url: string): Promise<any> {
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
