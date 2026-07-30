@@ -202,10 +202,21 @@ function HomePage() {
   const extraSections = useMemo(() => {
     const sections: { id: string; caption: string; title: string; tracks: Track[] }[] = [];
 
+    // Songs that arrived with the latest open get their own rail up front.
+    if (discovery.batches > 1 && discovery.fresh.length >= 4) {
+      sections.push({
+        id: `fresh-batch-${discovery.batches}`,
+        caption: "Added since you were last here",
+        title: "Fresh for you",
+        tracks: discovery.fresh,
+      });
+    }
+
     // Extra discovery rails beyond the three shown up top.
-    (discovery?.rails ?? []).slice(3).forEach((rail) => {
+    discovery.rails.slice(3).forEach((rail) => {
       sections.push({ id: rail.id, caption: rail.caption, title: rail.title, tracks: rail.tracks });
     });
+
 
     // Discovery artists become their own rails so scrolling keeps introducing
     // unfamiliar names, not just archive deep cuts.
