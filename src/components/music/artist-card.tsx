@@ -71,7 +71,7 @@ export function ArtistCard({
   }
 
   return (
-    <Link to="/artists/$artistId" params={{ artistId: id }} className={className}>
+    <Link to="/artists/$artistId" params={{ artistId: id }} className={className} style={style}>
       {inner}
     </Link>
   );
