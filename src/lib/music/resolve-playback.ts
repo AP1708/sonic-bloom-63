@@ -141,6 +141,8 @@ export async function resolveMusicMetadata(
   track: Track,
 ): Promise<{ title: string; artist: string; durationSec: number }> {
   const fallback = { title: track.title, artist: track.artist, durationSec: track.durationSec };
+  // Already a YouTube Music entry, or a direct-stream archive recording.
+  if (track.youtubeVideoId || track.audioUrl) return fallback;
   try {
     await resolveYouTubeVideoId(track);
   } catch {
