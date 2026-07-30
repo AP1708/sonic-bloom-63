@@ -19,6 +19,7 @@ import {
   persistQueryCache,
 } from "@/lib/query-persist";
 import { ThemeProvider, ThemeScript } from "@/components/theme/theme";
+import { MotionPrefsProvider } from "@/components/motion/motion-prefs";
 
 
 function NotFoundComponent() {
