@@ -119,15 +119,21 @@ function mergeBatch(feed: DiscoveryFeed) {
     });
   }
 
+  const freshArtists = new Set<string>();
   for (const artist of feed.artists) {
     const key = artist.name.toLowerCase().trim();
     if (store.artistSeen.has(key)) continue;
     store.artistSeen.add(key);
+    freshArtists.add(key);
     store.artists = [...store.artists, artist].slice(0, MAX_ARTISTS);
   }
 
   store.fresh = freshThisBatch.slice(0, MAX_FRESH);
   store.batches += 1;
+  // The very first batch is entirely new — marking all of it would be noise.
+  const firstBatch = store.batches === 1;
+  store.freshKeys = firstBatch ? new Set() : new Set(freshThisBatch.map(trackKey));
+  store.freshArtistKeys = firstBatch ? new Set() : freshArtists;
 }
 
 /**
