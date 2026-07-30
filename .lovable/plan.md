@@ -1,45 +1,50 @@
 ## Goal
 
-Make every playback-adjacent path (playback resolution, lyrics, smart downloads) source its YouTube data from the YouTube Music catalog path, and turn the embedded video player into a YouTube Music-style audio player.
+Replace the current home screen (greeting + "Jump back in" list + "Quick picks" list + card shelves) with a layout that mirrors the YouTube Music home feed.
 
-## Current state (verified)
+## Target layout (top to bottom)
 
-- `youtube.functions.ts` already tries `youtubeMusicSearch` (music.youtube.com innertube, `WEB_REMIX`) first, then keyless web search, then the Data API — so the music catalog is preferred at the search layer.
-- `resolve-playback.ts` still resolves with video-style queries (`"<artist> <title> official audio"`) and scores candidates with video heuristics, so matches can land on generic video uploads rather than the Music song entry.
-- `use-lyrics.ts` sends the raw `track.title` / `track.artist` to LRCLIB. For tracks whose metadata came from a video upload, the title still contains video noise, which hurts lyric matches.
-- `smart-downloads.ts` builds candidates from liked tracks, history, the Archive catalog and `findRelatedTracks` (which goes through `searchAll`). Non-Archive tracks are metadata-"pinned", not downloaded.
-- The player uses the official YouTube IFrame Player API, rendered as a visible video surface.
+```text
+[ mood/genre chip row ]  Energise · Relax · Workout · Focus · Commute · Romance · Party
+--------------------------------------------------------------
+[ HERO ROW ]  large "Quick picks" hub card + big top-pick artwork
+--------------------------------------------------------------
+Listen again                              -> horizontal scroll, square cards
+Quick picks                               -> 4-row x N-column track grid, horizontal paging
+Mixed for you                             -> horizontal scroll, mix cards w/ blurred stack look
+Trending Indian songs                     -> horizontal scroll, song cards w/ play overlay
+Artists for you                           -> horizontal scroll, ROUND artist avatars
+Recommended albums / playlists            -> horizontal scroll, square cards
+```
 
-## Changes
+Key YTM traits to reproduce:
+- Horizontal snap-scrolling carousels (no wrapping grids) with hover chevrons on desktop.
+- Section headers: small caption line above a large title, "More" link on the right.
+- The "Quick picks" section is a multi-row track grid that scrolls sideways, one column = 4 stacked track rows.
+- Round artist avatars (distinct from square album art).
+- Chip row is horizontally scrollable and sticky-ish at the top of the content.
+- Existing SONANCE dark tokens/typography kept — no new colors, all semantic tokens.
 
-### 1. YouTube Music-first resolution
+## What gets built
 
-- Add a music-mode option to the YouTube search server function so callers can request "songs catalog only" (skip keyless-web/Data-API video fallbacks, or mark those results as `video` origin).
-- Update `resolve-playback.ts`:
-  - Drop the `"official audio"` suffix on pass 1; query the Music catalog with plain `artist title` (Music results are already song-scoped).
-  - Prefer candidates whose strategy is `ytm_innertube`; only fall back to video-derived candidates when the Music catalog returns nothing.
-  - Keep the existing scoring (duration proximity, artist/title coverage, bad-term penalties) as the tiebreaker, and keep the current analytics tags with the strategy recorded.
+1. `src/components/music/carousel.tsx` — reusable `Carousel` (snap scroll container + optional left/right arrow buttons) and `SectionHeader` (caption, title, optional "More" link).
+2. `src/components/music/chip-row.tsx` — scrollable mood/genre chips; selecting a chip filters the feed (client-side filter over catalog + search results), "All" resets.
+3. `src/components/music/song-card.tsx` — square artwork card with hover play overlay, title, artist, source tag (for song/mix/album items).
+4. `src/components/music/artist-card.tsx` — round avatar card linking to the existing artist route.
+5. `src/components/music/quick-picks-grid.tsx` — the 4-rows-per-column horizontally-paged track grid, reusing `TrackRow` behaviour (play, like, add-to-queue, `TrackMenu`).
+6. Rewrite `src/routes/index.tsx` to compose the sections above.
 
-### 2. Lyrics panel pulls Music metadata
+## Data wiring (no backend changes)
 
-- Before calling LRCLIB, normalise the track through the Music metadata: when the current track has a resolved YouTube Music match, use that match's clean song title / artist / duration as the lyrics query, falling back to the raw track fields.
-- Keep the existing progressive title-variant fallback and the "no lyrics available" empty state unchanged.
+- Listen again -> `useRecentlyPlayed` (hidden when empty or signed out).
+- Quick picks -> blend of `DEMO_TRACKS`, the Indian archive catalog, and liked songs.
+- Mixed for you -> derived mixes from `taste.ts` artist affinity (falls back to catalog genres when there's no history).
+- Trending Indian songs -> archive `full-catalog` slice.
+- Artists for you -> unique artists from the archive catalog + listening history.
+- Recommended albums -> existing `DEMO_COLLECTIONS` / shelves.
 
-### 3. Smart downloads use Music sources
+All play actions keep going through the existing `usePlayer` (`playTrack`, `playCollection`, `enqueue`), so playback, resolution, and fallback logic are untouched.
 
-- In `buildCandidates`, route the discovery step through the Music-first search (via `findRelatedTracks` with the music-mode source) so suggested tracks are songs, not videos.
-- Keep Archive tracks as the only true audio downloads; YouTube Music entries stay "Pinned" (metadata only) — label them "YouTube Music" in the status chips.
-- Analytics events keep the same names, with `source: "youtube"` values relabelled to reflect the Music origin.
+## Out of scope
 
-### 4. YouTube Music player
-
-Technical note: YouTube Music has no embeddable player of its own, and music.youtube.com cannot be framed. The sanctioned way to play a Music track is the YouTube IFrame Player API pointed at that song's video id. So the player is re-shaped rather than swapped:
-
-- Render the IFrame host as an audio-style surface: hidden/offscreen video, with our own artwork + title + artist + transport UI driving it (matching the YouTube Music look) instead of the visible video box.
-- Load videos with music-friendly params (`playsinline`, no related videos, no annotations, controls off), keep progress polling, volume, seek and the existing 15s watchdog / auto-skip behaviour intact.
-- Rebrand every remaining player-side string and badge to "YouTube Music", including the mobile background-playback notice.
-
-### 5. Verification
-
-- Headless run: search a Spotify-only track, confirm it resolves via the Music catalog, plays through the reshaped player, advances on end, and the lyrics pane populates or shows the graceful fallback.
-- Confirm the Downloads page still reports Ready/Pinned/Failed correctly.
+No changes to the player, sidebar, search, downloads, or any server/database code. Head metadata on `/` stays as-is apart from keeping it valid.
