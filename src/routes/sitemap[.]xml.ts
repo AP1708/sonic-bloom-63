@@ -13,9 +13,13 @@ export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
+        // Auth-gated routes (/admin, /downloads, /library, /liked) and OAuth
+        // callbacks are intentionally excluded — they are not indexable.
         const entries: SitemapEntry[] = [
           { path: "/", changefreq: "daily", priority: "1.0" },
           { path: "/search", changefreq: "weekly", priority: "0.8" },
+          { path: "/artists", changefreq: "weekly", priority: "0.8" },
+          { path: "/settings", changefreq: "monthly", priority: "0.4" },
           { path: "/auth", changefreq: "monthly", priority: "0.3" },
         ];
 
