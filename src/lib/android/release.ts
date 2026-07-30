@@ -1,5 +1,5 @@
 /** GitHub repository that publishes the IMUSIC Android releases. */
-export const ANDROID_RELEASE_REPO = "AP1708/imusic";
+export const ANDROID_RELEASE_REPO = "Ayush1708/imusic";
 
 export const ANDROID_RELEASES_URL = `https://github.com/${ANDROID_RELEASE_REPO}/releases`;
 
