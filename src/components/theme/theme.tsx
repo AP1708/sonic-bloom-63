@@ -1,10 +1,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { applyAmbience, getAmbience, type Ambience } from "@/lib/theme/ambience";
 
 type Theme = "light" | "dark" | "system";
 
 interface ThemeContextValue {
   theme: Theme;
   resolved: "light" | "dark";
+  /** Accent palette derived from the current time of day and season. */
+  ambience: Ambience;
   setTheme: (theme: Theme) => void;
   toggle: () => void;
 }
@@ -36,6 +39,24 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [resolved, setResolved] = useState<"light" | "dark">(() =>
     typeof window === "undefined" ? "light" : resolveTheme("system"),
   );
+  const [ambience, setAmbience] = useState<Ambience>(() => getAmbience());
+
+  // Re-derive the accent palette on mount and every few minutes so the theme
+  // follows the clock (and, over time, the season) without a reload.
+  useEffect(() => {
+    const tick = () => setAmbience(getAmbience());
+    tick();
+    const interval = setInterval(tick, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, []);
+
+  useEffect(() => {
+    applyAmbience(ambience, resolved);
+  }, [ambience, resolved]);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
@@ -75,7 +96,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, resolved, setTheme, toggle }}>
+    <ThemeContext.Provider value={{ theme, resolved, ambience, setTheme, toggle }}>
       {children}
     </ThemeContext.Provider>
   );
