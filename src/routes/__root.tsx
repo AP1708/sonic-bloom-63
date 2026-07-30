@@ -21,6 +21,7 @@ import {
 import { ThemeProvider, ThemeScript } from "@/components/theme/theme";
 import { MotionPrefsProvider } from "@/components/motion/motion-prefs";
 import { appleSplashLinks } from "@/lib/pwa/apple-splash";
+import { Toaster } from "@/components/ui/sonner";
 
 
 function NotFoundComponent() {
@@ -183,6 +184,7 @@ function RootComponent() {
           <PlayerProvider>
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
+            <Toaster />
           </PlayerProvider>
         </MotionPrefsProvider>
       </ThemeProvider>
