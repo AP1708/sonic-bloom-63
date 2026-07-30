@@ -1,12 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { Track } from "./types";
-import {
-  exchangeAuthorizationCode,
-  refreshAccessToken,
-  searchSpotifyTracks,
-  spotifyCredentials,
-  type SpotifyTokens,
-} from "./spotify.server";
+import { searchSpotifyTracks, spotifyCredentials } from "./spotify.server";
+
 
 interface SearchInput {
   query: string;
@@ -28,16 +23,7 @@ export const searchSpotify = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data }): Promise<Track[]> => searchSpotifyTracks(data.query, data.limit));
 
-export const exchangeSpotifyCode = createServerFn({ method: "POST" })
-  .inputValidator((input: { code: string; codeVerifier: string; redirectUri: string }) => ({
-    code: String(input?.code ?? ""),
-    codeVerifier: String(input?.codeVerifier ?? ""),
-    redirectUri: String(input?.redirectUri ?? ""),
-  }))
-  .handler(async ({ data }): Promise<SpotifyTokens> => exchangeAuthorizationCode(data));
+// The authorization-code exchange and refresh deliberately live in
+// `connections.functions.ts` behind authentication: the refresh token is
+// stored encrypted server-side and is never returned to the browser.
 
-export const refreshSpotifyToken = createServerFn({ method: "POST" })
-  .inputValidator((input: { refreshToken: string }) => ({
-    refreshToken: String(input?.refreshToken ?? ""),
-  }))
-  .handler(async ({ data }): Promise<SpotifyTokens> => refreshAccessToken(data.refreshToken));
