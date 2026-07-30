@@ -72,7 +72,13 @@ export const youtubeProvider: MusicProvider = {
   isConfigured: () => true,
   async search(query, options = {}) {
     const limit = options.limit ?? 20;
-    return searchYouTube({ data: { query, limit } });
+    const result = await searchYouTube({ data: { query, limit } });
+    return result.tracks;
+  },
+  async searchWithMeta(query, options = {}) {
+    const limit = options.limit ?? 20;
+    const result = await searchYouTube({ data: { query, limit } });
+    return { tracks: result.tracks, strategy: result.strategy, reason: result.reason };
   },
 };
 
@@ -100,8 +106,41 @@ export async function searchAll(query: string, options: SearchOptions = {}): Pro
   const source = options.source ?? "all";
   const active = source === "all" ? PROVIDERS : PROVIDERS.filter((p) => p.id === source);
 
+  track({ event: "search.started", category: "search", query, meta: { source } });
+  const startedAll = Date.now();
+
   const settled = await Promise.allSettled(
-    active.map((provider) => provider.search(query, options)),
+    active.map(async (provider) => {
+      const started = Date.now();
+      try {
+        const result = provider.searchWithMeta
+          ? await provider.searchWithMeta(query, options)
+          : { tracks: await provider.search(query, options) };
+        track({
+          event: result.tracks.length ? "search.completed" : "search.empty",
+          category: "search",
+          source: provider.id,
+          query,
+          status: result.tracks.length ? "ok" : "degraded",
+          reason: result.reason ?? null,
+          durationMs: Date.now() - started,
+          resultCount: result.tracks.length,
+          meta: { strategy: result.strategy ?? null },
+        });
+        return result.tracks;
+      } catch (error) {
+        track({
+          event: "search.failed",
+          category: "search",
+          source: provider.id,
+          query,
+          status: "error",
+          reason: error instanceof Error ? error.message : "unknown_error",
+          durationMs: Date.now() - started,
+        });
+        throw error;
+      }
+    }),
   );
 
   const tracks: Track[] = [];
@@ -118,6 +157,17 @@ export async function searchAll(query: string, options: SearchOptions = {}): Pro
       });
     }
   });
+
+  track({
+    event: "search.finished",
+    category: "search",
+    query,
+    status: degraded.length ? "degraded" : "ok",
+    durationMs: Date.now() - startedAll,
+    resultCount: tracks.length,
+    meta: { source, degraded: degraded.map((item) => item.source) },
+  });
+
 
   // Interleave sources so neither platform dominates the top of the results.
   const bySource = new Map<MusicSource, Track[]>();
