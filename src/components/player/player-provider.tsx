@@ -152,7 +152,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const spotifyActiveRef = useRef(false);
   const [spotifyStreaming, setSpotifyStreaming] = useState(false);
-  /** YouTube video resolved on demand for tracks that have no playable stream. */
+  /** YouTube Music song resolved on demand for tracks that have no playable stream. */
   const [resolvedVideoId, setResolvedVideoId] = useState<{ trackId: string; videoId: string | null } | null>(
     null,
   );
@@ -191,7 +191,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const fallbackVideoId =
     rawFallbackVideoId && !deadVideos.includes(rawFallbackVideoId) ? rawFallbackVideoId : null;
 
-  // Priority: Spotify SDK → direct stream → YouTube video → 30s preview clip.
+  // Priority: Spotify SDK → direct stream → YouTube Music → 30s preview clip.
   const currentVideoId = useSpotifySdk || directAudioUrl ? null : (ownVideoId ?? fallbackVideoId);
   const currentAudioUrl = useSpotifySdk
     ? null
@@ -414,7 +414,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [state.current, ownSpotifyUri, resolvedSpotify]);
 
-  // Resolve a YouTube match for every track without a direct stream, so the
+  // Resolve a YouTube Music match for every track without a direct stream, so the
   // video source stays ready even while Spotify is streaming.
   useEffect(() => {
     const track = state.current;
@@ -523,7 +523,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.volume = state.muted ? 0 : state.volume;
   }, [state.volume, state.muted]);
 
-  // ---- YouTube IFrame Player API (official embedded playback) ----
+  // ---- YouTube Music playback (official IFrame Player API, audio-only) ----
   useEffect(() => {
     if (!currentVideoId) return;
     let cancelled = false;
@@ -535,7 +535,18 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       ytPlayerRef.current = new w.YT.Player(ytHostRef.current, {
         height: "100%",
         width: "100%",
-        playerVars: { autoplay: 0, controls: 0, playsinline: 1, rel: 0, modestbranding: 1 },
+        // Audio-first: no chrome, no related videos, no keyboard capture — the
+        // app's own transport drives it like the YouTube Music player.
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          playsinline: 1,
+          rel: 0,
+          modestbranding: 1,
+          iv_load_policy: 3,
+          disablekb: 1,
+          fs: 0,
+        },
         events: {
           onReady: () => setYtReady(true),
           onStateChange: (event: { data: number }) => {
@@ -593,7 +604,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     yt.setVolume(Math.round((state.muted ? 0 : state.volume) * 100));
   }, [state.volume, state.muted, ytReady]);
 
-  // Progress polling for the YouTube player.
+  // Progress polling for the YouTube Music player.
   useEffect(() => {
     if (!currentVideoId || !ytReady || !state.isPlaying) return;
     const id = window.setInterval(() => {
@@ -806,7 +817,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // YouTube-sourced audio is paused by mobile browsers when the tab goes to the
+  // YouTube Music audio is paused by mobile browsers when the tab goes to the
   // background — direct streams and Spotify keep playing. Explain it once.
   const bgHintRef = useRef({ hidWithVideo: false, shown: false });
   useEffect(() => {
@@ -820,7 +831,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         hint.shown = true;
         toast("Paused in the background", {
           description:
-            "This track only has a YouTube source, and mobile browsers pause YouTube when the app isn't in front. Tracks with a direct or Spotify source keep playing with the screen off.",
+            "This track only has a YouTube Music source, and mobile browsers pause it when the app isn't in front. Tracks with a direct or Spotify source keep playing with the screen off.",
         });
       }
       hint.hidWithVideo = false;
@@ -1044,17 +1055,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         className="hidden"
       />
-      {/* Official YouTube IFrame player — kept mounted and visible while a video track plays. */}
+      {/* YouTube Music playback surface: the official player runs audio-only,
+          off-screen, while the app's own artwork and transport drive it. */}
       <div
-        className={
-          currentVideoId
-            ? "fixed bottom-28 right-4 z-40 w-44 overflow-hidden rounded-lg border border-border bg-black shadow-lg lg:w-56"
-            : "pointer-events-none fixed h-0 w-0 overflow-hidden opacity-0"
-        }
+        aria-hidden
+        className="pointer-events-none fixed bottom-0 left-0 size-px overflow-hidden opacity-0"
       >
-        <div className={currentVideoId ? "aspect-video w-full" : "h-0 w-0"}>
-          <div ref={ytHostRef} className="size-full" />
-        </div>
+        <div ref={ytHostRef} className="size-full" />
       </div>
       {children}
 

@@ -83,9 +83,9 @@ function score(candidate: Track, seed: Track): number {
   return value;
 }
 
-async function safeSearch(query: string, limit: number): Promise<Track[]> {
+async function safeSearch(query: string, limit: number, musicOnly = false): Promise<Track[]> {
   try {
-    const results = await searchAll(query, { limit });
+    const results = await searchAll(query, { limit, musicOnly });
     return results.tracks;
   } catch {
     return [];
@@ -100,6 +100,7 @@ export async function findRelatedTracks(
   seed: Track,
   exclude: Iterable<string> = [],
   limit = 8,
+  options: { musicOnly?: boolean } = {},
 ): Promise<Track[]> {
   const artist = primaryArtist(seed.artist);
   const titleWords = keywords(seed.title).slice(0, 3).join(" ");
@@ -110,7 +111,7 @@ export async function findRelatedTracks(
 
   if (!queries.length) return [];
 
-  const batches = await Promise.all(queries.map((query) => safeSearch(query, 20)));
+  const batches = await Promise.all(queries.map((query) => safeSearch(query, 20, options.musicOnly ?? false)));
 
   const skip = new Set(exclude);
   skip.add(seed.id);

@@ -73,12 +73,16 @@ export const youtubeProvider: MusicProvider = {
   isConfigured: () => true,
   async search(query, options = {}) {
     const limit = options.limit ?? 20;
-    const result = await searchYouTube({ data: { query, limit } });
+    const result = await searchYouTube({
+      data: { query, limit, musicOnly: options.musicOnly ?? false },
+    });
     return result.tracks;
   },
   async searchWithMeta(query, options = {}) {
     const limit = options.limit ?? 20;
-    const result = await searchYouTube({ data: { query, limit } });
+    const result = await searchYouTube({
+      data: { query, limit, musicOnly: options.musicOnly ?? false },
+    });
     return { tracks: result.tracks, strategy: result.strategy, reason: result.reason };
   },
 };

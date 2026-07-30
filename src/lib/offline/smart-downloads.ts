@@ -113,10 +113,13 @@ async function buildCandidates(history: HistoryEntry[], liked: Track[]): Promise
   // A little discovery: songs related to the most-played track.
   const seeds = topTracks(history, 2);
   for (const seed of seeds) {
+    // Discovery goes through the YouTube Music songs catalog (not video
+    // uploads), so pinned entries are proper songs.
     const related = await findRelatedTracks(
       seed,
       candidates.map((track) => track.id),
       6,
+      { musicOnly: true },
     ).catch(() => [] as Track[]);
     candidates.push(...related);
   }

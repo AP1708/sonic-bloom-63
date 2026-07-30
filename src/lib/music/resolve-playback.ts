@@ -134,6 +134,23 @@ function matches(track: Track, candidate: Track): boolean {
   return scoreCandidate(track, candidate) > 0;
 }
 
+/** Clean song metadata for a track, taken from its YouTube Music match when there is one. */
+const musicMetaCache = new Map<string, { title: string; artist: string; durationSec: number } | null>();
+
+export async function resolveMusicMetadata(
+  track: Track,
+): Promise<{ title: string; artist: string; durationSec: number }> {
+  const fallback = { title: track.title, artist: track.artist, durationSec: track.durationSec };
+  // Already a YouTube Music entry, or a direct-stream archive recording.
+  if (track.youtubeVideoId || track.audioUrl) return fallback;
+  try {
+    await resolveYouTubeVideoId(track);
+  } catch {
+    return fallback;
+  }
+  return musicMetaCache.get(track.id) ?? fallback;
+}
+
 export async function resolveYouTubeVideoId(
   track: Track,
   resolveId?: string,
@@ -169,26 +186,27 @@ export async function resolveYouTubeVideoId(
           if (score <= minScore) continue;
           if (!best || score > best.score) best = { track: item, score };
         }
-        return best?.track.youtubeVideoId ?? null;
+        return best?.track ?? null;
       };
 
-      // Pass 1: strict — prefer official audio uploads that match closely.
-      const strict = await searchYouTube({ data: { query: `${base} official audio`, limit: 10 } });
-      let videoId = pick(strict.tracks, 0);
-      let pass = "strict";
+      // Pass 1: the YouTube Music songs catalog — already song-scoped, so the
+      // plain "artist title" query is the right one (no "official audio" noise).
+      const music = await searchYouTube({ data: { query: base, limit: 10, musicOnly: true } });
+      let match = pick(music.tracks, 0) ?? pick(music.tracks, -1);
+      let pass = "ytm";
 
-      // Pass 2: plain query, relaxed threshold — a playable near-match beats silence.
-      if (!videoId) {
-        tag("fallback.attempt", { strategy: strict.strategy, pass: "strict" }, "strict_pass_failed");
+      // Pass 2: only when the Music catalog has nothing — fall back to the
+      // general search (video uploads included) so playback still works.
+      if (!match) {
+        tag("fallback.attempt", { strategy: music.strategy, pass }, "ytm_pass_failed");
         const relaxed = await searchYouTube({ data: { query: base, limit: 10 } });
-        videoId =
+        match =
           pick(relaxed.tracks, 0) ??
           pick(relaxed.tracks, -1) ??
-          pick(strict.tracks, -1) ??
-          relaxed.tracks.find((item) => item.youtubeVideoId)?.youtubeVideoId ??
+          relaxed.tracks.find((item) => item.youtubeVideoId) ??
           null;
         pass = "relaxed";
-        if (!videoId) {
+        if (!match) {
           tag(
             "fallback.exhausted",
             { strategy: relaxed.strategy, pass, durationMs: Date.now() - started },
@@ -197,13 +215,21 @@ export async function resolveYouTubeVideoId(
         }
       }
 
-      if (videoId) {
+      const videoId = match?.youtubeVideoId ?? null;
+      if (match) {
+        musicMetaCache.set(track.id, {
+          title: match.title || track.title,
+          artist: match.artist || track.artist,
+          durationSec: match.durationSec || track.durationSec,
+        });
         tag("fallback.matched", {
-          strategy: strict.strategy,
+          strategy: music.strategy,
           pass,
           videoId,
           durationMs: Date.now() - started,
         });
+      } else {
+        musicMetaCache.set(track.id, null);
       }
 
       cache.set(key, videoId);
