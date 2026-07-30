@@ -14,6 +14,7 @@ import { DEMO_COLLECTIONS, DEMO_TRACKS, tracksForCollection } from "@/lib/music/
 import { artistSlug, artistTracks, loadFullCatalog } from "@/lib/music/full-catalog";
 import { getDiscoveryFeed } from "@/lib/music/discovery.functions";
 import { rotateFeedSeed, seededSample, seededShuffle, useFeedSeed } from "@/lib/music/feed-seed";
+import { useMotionPrefs } from "@/components/motion/motion-prefs";
 import {
   resetDiscoveryStore,
   trackKey,
