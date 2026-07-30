@@ -9,6 +9,8 @@ interface ArtworkProps {
   alt: string;
   className?: string;
   rounded?: string;
+  /** Mark above-the-fold artwork so it loads eagerly (LCP candidate). */
+  priority?: boolean;
 }
 
 /**
@@ -16,7 +18,14 @@ interface ArtworkProps {
  * source platform provides no image (or before metadata resolves), so the grid
  * never shows an empty box.
  */
-export function Artwork({ seed, src, alt, className, rounded = "rounded-xl" }: ArtworkProps) {
+export function Artwork({
+  seed,
+  src,
+  alt,
+  className,
+  rounded = "rounded-xl",
+  priority = false,
+}: ArtworkProps) {
   const hue = hueFor(seed);
   return (
     <div
@@ -30,7 +39,16 @@ export function Artwork({ seed, src, alt, className, rounded = "rounded-xl" }: A
       }
     >
       {src ? (
-        <img src={src} alt={alt} loading="lazy" className="h-full w-full object-cover" />
+        <img
+          src={src}
+          alt={alt}
+          width={320}
+          height={320}
+          loading={priority ? "eager" : "lazy"}
+          fetchPriority={priority ? "high" : "auto"}
+          decoding={priority ? "sync" : "async"}
+          className="aspect-square h-full w-full object-cover"
+        />
       ) : (
         <span className="sr-only">{alt}</span>
       )}
