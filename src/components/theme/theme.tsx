@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { applyAmbience, getAmbience, type Ambience } from "@/lib/theme/ambience";
 import { getThemePreference, setThemePreference } from "@/lib/theme/theme.functions";
 import { supabase } from "@/integrations/supabase/client";
