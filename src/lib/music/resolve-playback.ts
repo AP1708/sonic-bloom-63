@@ -134,14 +134,31 @@ function matches(track: Track, candidate: Track): boolean {
   return scoreCandidate(track, candidate) > 0;
 }
 
-export async function resolveYouTubeVideoId(track: Track): Promise<string | null> {
+export async function resolveYouTubeVideoId(
+  track: Track,
+  resolveId?: string,
+): Promise<string | null> {
   if (track.youtubeVideoId) return track.youtubeVideoId;
   const key = track.id;
   if (cache.has(key)) return cache.get(key) ?? null;
   const existing = inFlight.get(key);
   if (existing) return existing;
 
+  const tag = (event: string, extra: Record<string, unknown> = {}, reason?: string) =>
+    trackEvent({
+      event,
+      category: "fallback",
+      source: "youtube",
+      trackId: track.id,
+      title: track.title,
+      artist: track.artist,
+      status: reason ? "degraded" : "ok",
+      reason: reason ?? null,
+      meta: { resolveId: resolveId ?? null, from: track.source, to: "youtube", ...extra },
+    });
+
   const promise = (async () => {
+    const started = Date.now();
     try {
       const base = `${track.artist} ${track.title}`.replace(/\s+/g, " ").trim();
       const pick = (results: Track[], minScore: number) => {
@@ -157,22 +174,46 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
 
       // Pass 1: strict — prefer official audio uploads that match closely.
       const strict = await searchYouTube({ data: { query: `${base} official audio`, limit: 10 } });
-      let videoId = pick(strict, 0);
+      let videoId = pick(strict.tracks, 0);
+      let pass = "strict";
 
       // Pass 2: plain query, relaxed threshold — a playable near-match beats silence.
       if (!videoId) {
+        tag("fallback.attempt", { strategy: strict.strategy, pass: "strict" }, "strict_pass_failed");
         const relaxed = await searchYouTube({ data: { query: base, limit: 10 } });
         videoId =
-          pick(relaxed, 0) ??
-          pick(relaxed, -1) ??
-          pick(strict, -1) ??
-          relaxed.find((item) => item.youtubeVideoId)?.youtubeVideoId ??
+          pick(relaxed.tracks, 0) ??
+          pick(relaxed.tracks, -1) ??
+          pick(strict.tracks, -1) ??
+          relaxed.tracks.find((item) => item.youtubeVideoId)?.youtubeVideoId ??
           null;
+        pass = "relaxed";
+        if (!videoId) {
+          tag(
+            "fallback.exhausted",
+            { strategy: relaxed.strategy, pass, durationMs: Date.now() - started },
+            relaxed.tracks.length ? "no_match" : (relaxed.reason ?? "no_results"),
+          );
+        }
+      }
+
+      if (videoId) {
+        tag("fallback.matched", {
+          strategy: strict.strategy,
+          pass,
+          videoId,
+          durationMs: Date.now() - started,
+        });
       }
 
       cache.set(key, videoId);
       return videoId;
-    } catch {
+    } catch (error) {
+      tag(
+        "fallback.failed",
+        { durationMs: Date.now() - started },
+        error instanceof Error ? error.message : "lookup_failed",
+      );
       cache.set(key, null);
       return null;
     } finally {
@@ -187,7 +228,10 @@ export async function resolveYouTubeVideoId(track: Track): Promise<string | null
 
 
 /** Finds a Spotify track URI for a track that came from another source. */
-export async function resolveSpotifyUri(track: Track): Promise<string | null> {
+export async function resolveSpotifyUri(
+  track: Track,
+  resolveId?: string,
+): Promise<string | null> {
   if (track.spotifyUri) return track.spotifyUri;
   const key = track.id;
   if (spotifyCache.has(key)) return spotifyCache.get(key) ?? null;
@@ -195,21 +239,47 @@ export async function resolveSpotifyUri(track: Track): Promise<string | null> {
   if (existing) return existing;
 
   const promise = (async () => {
+    const started = Date.now();
     try {
       const results = await searchSpotify({
         data: { query: `${track.artist} ${track.title}`.trim(), limit: 5 },
       });
       const hit = results.find((item) => matches(track, item)) ?? null;
       const uri = hit?.spotifyUri ?? null;
+      trackEvent({
+        event: uri ? "fallback.matched" : "fallback.exhausted",
+        category: "fallback",
+        source: "spotify",
+        trackId: track.id,
+        title: track.title,
+        artist: track.artist,
+        status: uri ? "ok" : "degraded",
+        reason: uri ? null : results.length ? "no_match" : "no_results",
+        durationMs: Date.now() - started,
+        meta: { resolveId: resolveId ?? null, from: track.source, to: "spotify" },
+      });
       spotifyCache.set(key, uri);
       return uri;
-    } catch {
+    } catch (error) {
+      trackEvent({
+        event: "fallback.failed",
+        category: "fallback",
+        source: "spotify",
+        trackId: track.id,
+        title: track.title,
+        artist: track.artist,
+        status: "error",
+        reason: error instanceof Error ? error.message : "lookup_failed",
+        durationMs: Date.now() - started,
+        meta: { resolveId: resolveId ?? null, from: track.source, to: "spotify" },
+      });
       spotifyCache.set(key, null);
       return null;
     } finally {
       spotifyInFlight.delete(key);
     }
   })();
+
 
   spotifyInFlight.set(key, promise);
   return promise;
