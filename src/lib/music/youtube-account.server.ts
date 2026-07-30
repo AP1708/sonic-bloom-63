@@ -243,7 +243,7 @@ export async function createYouTubePlaylist(
     method: "POST",
     query: { part: "snippet,status" },
     body: JSON.stringify({
-      snippet: { title, description: description ?? "Created with Sonance" },
+      snippet: { title, description: description ?? "Created with IMUSIC" },
       status: { privacyStatus: "private" },
     }),
   });

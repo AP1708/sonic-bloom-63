@@ -58,7 +58,7 @@ export function useMediaSession({
     navigator.mediaSession.metadata = new MediaMetadata({
       title: track.title,
       artist: track.artist,
-      album: track.album ?? "Sonance",
+      album: track.album ?? "IMUSIC",
       artwork,
     });
   }, [track]);

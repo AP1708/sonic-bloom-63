@@ -28,13 +28,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/_authenticated/downloads")({
   head: () => ({
     meta: [
-      { title: "Downloads & offline mix — Sonance" },
+      { title: "Downloads & offline mix — IMUSIC" },
       {
         name: "description",
         content:
           "Keep an offline mix that refreshes itself from your listening history and favourite artists.",
       },
-      { property: "og:title", content: "Downloads & offline mix — Sonance" },
+      { property: "og:title", content: "Downloads & offline mix — IMUSIC" },
       {
         property: "og:description",
         content: "Smart downloads that follow your taste, plus everything you've saved by hand.",

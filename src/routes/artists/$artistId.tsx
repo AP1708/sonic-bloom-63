@@ -17,12 +17,12 @@ export const Route = createFileRoute("/artists/$artistId")({
       .join(" ");
     return {
       meta: [
-        { title: `${name} songs — Sonance` },
+        { title: `${name} songs — IMUSIC` },
         {
           name: "description",
-          content: `Stream every ${name} recording in the Sonance public-domain archive, in full and without a login.`,
+          content: `Stream every ${name} recording in the IMUSIC public-domain archive, in full and without a login.`,
         },
-        { property: "og:title", content: `${name} — Sonance` },
+        { property: "og:title", content: `${name} — IMUSIC` },
         { property: "og:description", content: `All ${name} recordings, streaming in full.` },
         { property: "og:type", content: "music.musician" },
         { name: "twitter:card", content: "summary_large_image" },

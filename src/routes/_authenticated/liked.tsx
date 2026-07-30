@@ -10,9 +10,9 @@ import { formatTotalTime } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/liked")({
   head: () => ({
     meta: [
-      { title: "Liked songs — Sonance" },
+      { title: "Liked songs — IMUSIC" },
       { name: "description", content: "Every track you've saved across Spotify and YouTube Music." },
-      { property: "og:title", content: "Liked songs — Sonance" },
+      { property: "og:title", content: "Liked songs — IMUSIC" },
       { property: "og:description", content: "Your saved tracks from both platforms in one list." },
     ],
   }),

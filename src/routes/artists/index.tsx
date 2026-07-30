@@ -9,13 +9,13 @@ import { loadFullCatalog } from "@/lib/music/full-catalog";
 export const Route = createFileRoute("/artists/")({
   head: () => ({
     meta: [
-      { title: "Indian playback artists — Sonance" },
+      { title: "Indian playback artists — IMUSIC" },
       {
         name: "description",
         content:
-          "Browse every Indian playback singer in the Sonance archive — Lata Mangeshkar, Mohammed Rafi, Asha Bhosle, Kishore Kumar and more, with thousands of streamable recordings.",
+          "Browse every Indian playback singer in the IMUSIC archive — Lata Mangeshkar, Mohammed Rafi, Asha Bhosle, Kishore Kumar and more, with thousands of streamable recordings.",
       },
-      { property: "og:title", content: "Indian playback artists — Sonance" },
+      { property: "og:title", content: "Indian playback artists — IMUSIC" },
       {
         property: "og:description",
         content: "Thousands of golden-era Indian recordings, organised by singer.",

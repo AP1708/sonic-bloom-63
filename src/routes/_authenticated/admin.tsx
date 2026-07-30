@@ -28,10 +28,10 @@ import { downloadCsv, toCsv } from "@/lib/analytics/csv";
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({
     meta: [
-      { title: "Admin console — Sonance" },
-      { name: "description", content: "Moderate Sonance accounts, roles, and shared playlists." },
-      { property: "og:title", content: "Admin console — Sonance" },
-      { property: "og:description", content: "User suspensions and playlist moderation for Sonance." },
+      { title: "Admin console — IMUSIC" },
+      { name: "description", content: "Moderate IMUSIC accounts, roles, and shared playlists." },
+      { property: "og:title", content: "Admin console — IMUSIC" },
+      { property: "og:description", content: "User suspensions and playlist moderation for IMUSIC." },
     ],
   }),
   component: AdminPage,

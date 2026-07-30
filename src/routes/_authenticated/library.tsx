@@ -12,10 +12,10 @@ import { useSession } from "@/hooks/use-session";
 export const Route = createFileRoute("/_authenticated/library")({
   head: () => ({
     meta: [
-      { title: "Your library — Sonance" },
+      { title: "Your library — IMUSIC" },
       { name: "description", content: "Your playlists, saved albums, and collaborative mixes." },
-      { property: "og:title", content: "Your library — Sonance" },
-      { property: "og:description", content: "Manage playlists and collaborative mixes in Sonance." },
+      { property: "og:title", content: "Your library — IMUSIC" },
+      { property: "og:description", content: "Manage playlists and collaborative mixes in IMUSIC." },
     ],
   }),
   component: LibraryPage,

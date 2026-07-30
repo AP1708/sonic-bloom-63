@@ -87,14 +87,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sonance — Spotify and YouTube Music in one player" },
+      { title: "IMUSIC — Spotify and YouTube Music in one player" },
       {
         name: "description",
         content:
-          "Sonance is a dark, fast music app that unifies Spotify and YouTube Music into one library, queue, and player.",
+          "IMUSIC is a dark, fast music app that unifies Spotify and YouTube Music into one library, queue, and player.",
       },
-      { name: "author", content: "Sonance" },
-      { property: "og:title", content: "Sonance — Spotify and YouTube Music in one player" },
+      { name: "author", content: "IMUSIC" },
+      { property: "og:title", content: "IMUSIC — Spotify and YouTube Music in one player" },
       {
         property: "og:description",
         content: "One library, one queue, both platforms.",
@@ -104,7 +104,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0b0f0e" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "Sonance" },
+      { name: "apple-mobile-web-app-title", content: "IMUSIC" },
     ],
     links: [
       {

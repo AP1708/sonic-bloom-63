@@ -79,7 +79,7 @@ export function useDisconnectAccount() {
   });
 }
 
-/** Pushes a Sonance playlist up to the listener's YouTube account. */
+/** Pushes a IMUSIC playlist up to the listener's YouTube account. */
 export function useSyncPlaylistToYouTube() {
   const queryClient = useQueryClient();
   return useMutation({

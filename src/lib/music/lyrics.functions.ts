@@ -117,7 +117,7 @@ async function lrclibJson(path: string): Promise<unknown | null> {
   try {
     const res = await fetch(`https://lrclib.net/api/${path}`, {
       headers: {
-        "User-Agent": "Sonance (https://lovable.dev)",
+        "User-Agent": "IMUSIC (https://lovable.dev)",
         Accept: "application/json",
       },
     });

@@ -6,9 +6,9 @@ import { completeSpotifyLogin } from "@/lib/music/spotify-auth";
 export const Route = createFileRoute("/spotify/callback")({
   head: () => ({
     meta: [
-      { title: "Connecting Spotify — Sonance" },
+      { title: "Connecting Spotify — IMUSIC" },
       { name: "description", content: "Finishing the secure Spotify account connection." },
-      { property: "og:title", content: "Connecting Spotify — Sonance" },
+      { property: "og:title", content: "Connecting Spotify — IMUSIC" },
       { property: "og:description", content: "Finishing the secure Spotify account connection." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -54,7 +54,7 @@ function SpotifyCallback() {
               onClick={() => navigate({ to: "/", replace: true })}
               className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground"
             >
-              Back to Sonance
+              Back to IMUSIC
             </button>
           </>
         ) : (

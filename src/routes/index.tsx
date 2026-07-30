@@ -34,13 +34,13 @@ import type { Track } from "@/lib/music/types";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sonance — Stream music from Spotify and YouTube Music" },
+      { title: "IMUSIC — Stream music from Spotify and YouTube Music" },
       {
         name: "description",
         content:
-          "Sonance unifies your Spotify and YouTube Music in one dark, fast player with playlists, liked songs, and a synced queue.",
+          "IMUSIC unifies your Spotify and YouTube Music in one dark, fast player with playlists, liked songs, and a synced queue.",
       },
-      { property: "og:title", content: "Sonance — One player for Spotify and YouTube Music" },
+      { property: "og:title", content: "IMUSIC — One player for Spotify and YouTube Music" },
       {
         property: "og:description",
         content: "Search, queue, and organise music from Spotify and YouTube Music in a single library.",
@@ -203,7 +203,7 @@ function HomePage() {
     return seeds.slice(0, 6).map((name) => {
       const bucket = artistTracks(catalog, artistSlug(name));
       const tracks = bucket.length ? sample(bucket, 30, 19) : sample(pool, 30, 23);
-      return { id: `mix-${artistSlug(name)}`, title: `${name} radio`, subtitle: "Mix · Sonance", tracks };
+      return { id: `mix-${artistSlug(name)}`, title: `${name} radio`, subtitle: "Mix · IMUSIC", tracks };
     });
   }, [history, catalog, pool, sample]);
 

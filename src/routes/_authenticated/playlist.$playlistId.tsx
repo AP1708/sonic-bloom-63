@@ -26,10 +26,10 @@ import {
 export const Route = createFileRoute("/_authenticated/playlist/$playlistId")({
   head: () => ({
     meta: [
-      { title: "Playlist — Sonance" },
-      { name: "description", content: "A playlist in your Sonance library." },
-      { property: "og:title", content: "Playlist — Sonance" },
-      { property: "og:description", content: "Play, reorder, and share tracks in your Sonance playlist." },
+      { title: "Playlist — IMUSIC" },
+      { name: "description", content: "A playlist in your IMUSIC library." },
+      { property: "og:title", content: "Playlist — IMUSIC" },
+      { property: "og:description", content: "Play, reorder, and share tracks in your IMUSIC playlist." },
     ],
   }),
   component: PlaylistPage,

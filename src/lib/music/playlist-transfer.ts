@@ -143,7 +143,7 @@ export interface ParsedImport {
   tracks: Track[];
 }
 
-/** Accepts a Sonance JSON export, a bare JSON array of tracks, or a CSV file. */
+/** Accepts a IMUSIC JSON export, a bare JSON array of tracks, or a CSV file. */
 export function parsePlaylistFile(fileName: string, text: string): ParsedImport {
   const fallbackTitle = fileName.replace(/\.[^.]+$/, "") || "Imported playlist";
   const trimmed = text.trim();
