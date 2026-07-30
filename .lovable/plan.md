@@ -1,39 +1,57 @@
-## Goal
+IMUSIC Android APK is already published to GitHub Releases (not to the repo itself). The workflow is in `.github/workflows/android-release.yml`. The only thing left is to add the signing keystore as GitHub repository secrets and trigger the workflow.
 
-Get an installable IMUSIC APK published on your GitHub, with the in-app `/download` page automatically serving whatever the latest release is.
+## What we will do
 
-I'll assume the repo is **`Ayush1708/imusic`** — tell me if the repo name differs and I'll use that instead.
+1. Explain why GitHub Releases is the correct place for the APK (not the repo files).
+2. Add four repository secrets to `Ayush1708/imusic` so the workflow can sign the APK.
+3. Trigger the workflow once.
+4. Verify the release appears on the in-app `/download` page.
 
-## What changes
+## Exact steps
 
-1. **Point the app at your repo**
-   - `src/lib/android/release.ts`: change `ANDROID_RELEASE_REPO` from `AP1708/imusic` to `Ayush1708/imusic`.
-   - The `/download` route already fetches the newest GitHub Release, picks the `.apk` asset, and shows version, size, SHA-256 and install steps — so once a release exists there, the page updates itself with no further code changes.
+### Step 1 — Encode the keystore
 
-2. **Keystore generation (you run it once, locally)**
-   - Keep `scripts/generate-keystore.sh`, and add a short `android/RELEASE.md` covering:
-     - generating the keystore (`keytool`, alias, validity, passwords),
-     - where to keep it safe (never commit it),
-     - the base64 export used if you later want CI signing.
+From the repo root, run:
 
-3. **Manual build + upload guide**
-   - Same `android/RELEASE.md` documents the local flow:
-     `bun run build` → `npx cap sync android` → `./gradlew assembleRelease` → sign with the keystore → rename to `imusic-<version>.apk`.
-   - Then: create a GitHub Release tagged `v<version>` in `Ayush1708/imusic` and attach the APK. Nothing else needed — the download page reads it live.
+```bash
+base64 -w0 imusic-release.keystore > keystore.b64
+```
 
-4. **Tidy the CI workflow**
-   - Since you're uploading manually, `.github/workflows/android-release.yml` gets switched to `workflow_dispatch` only (no auto-run on tag push), so it never fails for missing keystore secrets but stays available if you later want automated builds.
+Then open `keystore.b64` and copy the entire single-line string.
 
-5. **Getting the code onto GitHub**
-   - The APK lives in GitHub Releases, not in the repo, but the project itself needs to be synced first: connect via the **+ menu → GitHub → Connect project**, creating/selecting `Ayush1708/imusic`. I can't do that step for you — it's an authorization flow on your account.
+### Step 2 — Add GitHub repository secrets
 
-## Technical notes
+Go to `https://github.com/Ayush1708/imusic/settings/secrets/actions` and add these **Repository secrets**:
 
-- Release lookup uses the public GitHub API (`/repos/{owner}/{repo}/releases/latest`), so the repo must be public or the page will show "no release yet".
-- SHA-256 shown on the download page is computed from the release asset digest / downloaded bytes; no extra metadata file is required.
-- Nothing about signing keys is stored in Lovable — the keystore and its passwords stay on your machine.
+| Secret name | Value |
+| --- | --- |
+| `ANDROID_KEYSTORE_BASE64` | The full content of `keystore.b64` |
+| `ANDROID_KEYSTORE_PASSWORD` | Your keystore store password |
+| `ANDROID_KEY_ALIAS` | `imusic` |
+| `ANDROID_KEY_PASSWORD` | Your key password |
 
-## Out of scope
+### Step 3 — Trigger the workflow
 
-- Building the APK inside Lovable (no Android SDK here) — the build runs on your machine or in GitHub Actions.
-- Play Store submission.
+1. Go to `https://github.com/Ayush1708/imusic/actions/workflows/android-release.yml`
+2. Click **Run workflow**
+3. Enter a version, e.g. `1.0.0`, then click **Run workflow**
+
+The workflow will:
+
+- Build the web app
+- Create the native Android project
+- Sign the release APK with the keystore
+- Create a GitHub Release tagged `v1.0.0`
+- Attach `imusic-1.0.0.apk` as the release asset
+
+### Step 4 — Verify
+
+- Open the release page: `https://github.com/Ayush1708/imusic/releases`
+- Confirm the APK is attached.
+- Open `https://sonic-bloom-63.lovable.app/download` in the IMUSIC app — it should show the latest version, size, SHA-256, and an install button.
+
+## Notes
+
+- The APK is never committed to the repo; it is stored as a release asset, which is the standard practice for Android apps.
+- The `android/RELEASE.md` file already contains these instructions plus manual fallback steps.
+- Future releases only require clicking **Run workflow** again with a higher version (and higher `versionCode` in `android/app/build.gradle`).
