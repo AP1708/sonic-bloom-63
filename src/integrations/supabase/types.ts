@@ -363,6 +363,7 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          motion_preference: Json
           suspended_at: string | null
           suspended_by: string | null
           suspended_until: string | null
@@ -374,6 +375,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          motion_preference?: Json
           suspended_at?: string | null
           suspended_by?: string | null
           suspended_until?: string | null
@@ -385,6 +387,7 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          motion_preference?: Json
           suspended_at?: string | null
           suspended_by?: string | null
           suspended_until?: string | null
