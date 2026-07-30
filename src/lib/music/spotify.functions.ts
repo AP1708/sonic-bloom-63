@@ -21,7 +21,15 @@ export const searchSpotify = createServerFn({ method: "GET" })
     query: String(input?.query ?? "").slice(0, 200),
     limit: Math.min(Math.max(Number(input?.limit ?? 20), 1), 50),
   }))
-  .handler(async ({ data }): Promise<Track[]> => searchSpotifyTracks(data.query, data.limit));
+  .handler(async ({ data }): Promise<Track[]> => {
+    try {
+      return await searchSpotifyTracks(data.query, data.limit);
+    } catch (error) {
+      // Search must never break the UI — other sources still return results.
+      console.error("Spotify search error:", error);
+      return [];
+    }
+  });
 
 // The authorization-code exchange and refresh deliberately live in
 // `connections.functions.ts` behind authentication: the refresh token is

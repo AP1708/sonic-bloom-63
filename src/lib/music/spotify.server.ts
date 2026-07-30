@@ -76,10 +76,15 @@ export function mapSpotifyTrack(item: SpotifyApiTrack): Track {
   };
 }
 
+/** Set while Spotify is rate limiting us, so we stop hammering the API. */
+let rateLimitedUntil = 0;
+
 export async function searchSpotifyTracks(query: string, limit: number): Promise<Track[]> {
   const creds = spotifyCredentials();
   if (!creds) throw new Error("Spotify is not configured yet.");
   if (!query.trim()) return [];
+  // Still cooling down from a 429 — degrade gracefully instead of failing the UI.
+  if (Date.now() < rateLimitedUntil) return [];
 
   const token = await getAppToken(creds);
   const url = new URL("https://api.spotify.com/v1/search");
@@ -97,11 +102,18 @@ export async function searchSpotifyTracks(query: string, limit: number): Promise
       appToken = null;
       throw new Error("Spotify rejected the credentials — check the Client ID and Secret.");
     }
-    if (res.status === 429) throw new Error("Spotify rate limit reached — try again shortly.");
+    if (res.status === 429) {
+      const retryAfterSec = Number(res.headers.get("retry-after") ?? 30);
+      rateLimitedUntil =
+        Date.now() + Math.min(Math.max(Number.isFinite(retryAfterSec) ? retryAfterSec : 30, 5), 300) * 1000;
+      return [];
+    }
     throw new Error(`Spotify search failed (${res.status})`);
   }
+  rateLimitedUntil = 0;
   const json = (await res.json()) as { tracks?: { items?: SpotifyApiTrack[] } };
   return (json.tracks?.items ?? []).filter(Boolean).map(mapSpotifyTrack);
+
 }
 
 export interface SpotifyTokens {
