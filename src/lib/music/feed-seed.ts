@@ -1,23 +1,125 @@
 /**
- * Per-session feed seed.
+ * Feed seed — controls how the home feed is sampled and which discovery
+ * queries run.
  *
- * The home feed should look different every time the app is opened, but stay
- * stable while you are using it (so rails don't reshuffle on every render).
- * A seed is generated once per browser session and reused from sessionStorage.
+ * The feed should look different every time the app is opened, so the seed is
+ * rotated on a cold open and again whenever the app comes back to the
+ * foreground after being away for a while. It is persisted in localStorage so
+ * a reload or PWA restart continues from a known value rather than flashing a
+ * different feed mid-session.
  */
 
+import { useEffect, useState } from "react";
+
 const SEED_KEY = "feed-seed";
+const OPENED_KEY = "feed-seed-opened-at";
 
-let cached: number | null = null;
+/** Returning after this long counts as "opening the app again". */
+const REOPEN_AFTER_MS = 20 * 60 * 1000;
 
+/** Stable value used during SSR so the server and first client render agree. */
+const SSR_SEED = 1;
+
+let current = SSR_SEED;
+let started = false;
+const listeners = new Set<(seed: number) => void>();
+
+function mint(): number {
+  return Math.floor(Math.random() * 1_000_000) + 1;
+}
+
+function persist(seed: number) {
+  try {
+    window.localStorage.setItem(SEED_KEY, String(seed));
+    window.localStorage.setItem(OPENED_KEY, String(Date.now()));
+  } catch {
+    /* storage can be unavailable in private modes — the seed still works in memory */
+  }
+}
+
+function emit(seed: number) {
+  current = seed;
+  for (const listener of listeners) listener(seed);
+}
+
+/** Force a new seed (manual refresh button, or a fresh open). */
+export function rotateFeedSeed(): number {
+  const seed = mint();
+  persist(seed);
+  emit(seed);
+  return seed;
+}
+
+/** Current seed without subscribing. */
 export function feedSeed(): number {
-  if (cached !== null) return cached;
-  if (typeof window === "undefined") return 1;
-  const stored = window.sessionStorage.getItem(SEED_KEY);
-  const parsed = stored ? Number(stored) : NaN;
-  const seed = Number.isFinite(parsed) && parsed > 0 ? parsed : Math.floor(Math.random() * 1_000_000) + 1;
-  window.sessionStorage.setItem(SEED_KEY, String(seed));
-  cached = seed;
+  return current;
+}
+
+/** Mark the app as active so the away-timer restarts from now. */
+function touch() {
+  try {
+    window.localStorage.setItem(OPENED_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+}
+
+function start() {
+  if (started || typeof window === "undefined") return;
+  started = true;
+
+  let lastOpened = 0;
+  let stored = NaN;
+  try {
+    lastOpened = Number(window.localStorage.getItem(OPENED_KEY)) || 0;
+    stored = Number(window.localStorage.getItem(SEED_KEY));
+  } catch {
+    /* ignore */
+  }
+
+  // A cold open (fresh page load) always rotates unless we just reloaded.
+  const recentlyOpened = Date.now() - lastOpened < 5_000;
+  if (recentlyOpened && Number.isFinite(stored) && stored > 0) {
+    emit(stored);
+    touch();
+  } else {
+    rotateFeedSeed();
+  }
+
+  // Coming back to the foreground after a while counts as reopening the app.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") {
+      touch();
+      return;
+    }
+    let awaySince = 0;
+    try {
+      awaySince = Number(window.localStorage.getItem(OPENED_KEY)) || 0;
+    } catch {
+      /* ignore */
+    }
+    if (Date.now() - awaySince > REOPEN_AFTER_MS) rotateFeedSeed();
+    else touch();
+  });
+}
+
+/**
+ * Subscribe to the feed seed. Returns the SSR seed on the server and during
+ * hydration, then the rotated value once mounted, so markup stays consistent.
+ */
+export function useFeedSeed(): number {
+  const [seed, setSeed] = useState(SSR_SEED);
+
+  useEffect(() => {
+    start();
+    setSeed(current);
+    const listener = (next: number) => setSeed(next);
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }, []);
+
   return seed;
 }
 
