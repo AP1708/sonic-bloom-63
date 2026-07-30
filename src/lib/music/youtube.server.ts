@@ -55,8 +55,8 @@ export function writeQuotaMiss(key: string): void {
 }
 
 /** Runs `fetcher` once per key even if called concurrently. */
-export function dedupe(key: string, fetcher: () => Promise<Track[]>): Promise<Track[]> {
-  const existing = inFlight.get(key);
+export function dedupe<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const existing = inFlight.get(key) as Promise<T> | undefined;
   if (existing) return existing;
   const promise = fetcher().finally(() => inFlight.delete(key));
   inFlight.set(key, promise);
