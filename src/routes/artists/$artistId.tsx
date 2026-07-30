@@ -45,7 +45,7 @@ function ArtistPage() {
     staleTime: Infinity,
   });
 
-  const tracks = catalog.data?.byArtist.get(artistId) ?? [];
+  const tracks = artistTracks(catalog.data, artistId);
   const name = tracks[0]?.artist ?? artistId.replace(/-/g, " ");
   const isLiked = (id: string) => Boolean(liked?.some((track) => track.id === id));
 

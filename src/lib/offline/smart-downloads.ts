@@ -102,7 +102,7 @@ async function buildCandidates(history: HistoryEntry[], liked: Track[]): Promise
     try {
       const catalog = await loadFullCatalog();
       for (const affinity of affinities) {
-        const bucket = catalog.byArtist.get(artistSlug(affinity.artist));
+        const bucket = artistTracks(catalog, artistSlug(affinity.artist));
         if (bucket) candidates.push(...bucket.slice(0, 20));
       }
     } catch {
