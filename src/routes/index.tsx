@@ -298,6 +298,62 @@ function HomePage() {
           </section>
         )}
 
+        {/* Fresh suggestions pulled live from YouTube Music on every open. */}
+        {discoveryLoading && topRails.length === 0 && (
+          <section className="flex flex-col gap-4" aria-busy>
+            <SectionHeader caption="Fetching today's picks" title="New releases" />
+            <div className="scroll-rail flex gap-4 overflow-hidden">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-48 w-36 shrink-0 animate-pulse rounded-xl bg-muted/40 sm:w-40"
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {topRails.map((rail) => (
+          <section key={rail.id} className="flex flex-col gap-4">
+            <SectionHeader caption={rail.caption} title={rail.title} moreTo="/search" />
+            <Carousel>
+              {rail.tracks.map((track) => (
+                <SongCard
+                  key={`${rail.id}-${track.id}`}
+                  track={track}
+                  playing={player.isPlaying && player.current?.id === track.id}
+                  onPlay={() => player.playTrack(track, rail.tracks)}
+                />
+              ))}
+            </Carousel>
+          </section>
+        ))}
+
+        {newArtists.length > 0 && (
+          <section className="flex flex-col gap-4">
+            <SectionHeader caption="Artists you haven't heard yet" title="New artists for you" />
+            <Carousel>
+              {newArtists.map((artist) => (
+                <ArtistCard
+                  key={artist.name}
+                  id={artistSlug(artist.name)}
+                  name={artist.name}
+                  caption="Start radio"
+                  imageUrl={artist.artworkUrl}
+                  onPlay={() =>
+                    player.playTrack(
+                      artist.sample,
+                      discoveryTracks.filter((track) => track.artist === artist.name),
+                    )
+                  }
+                />
+              ))}
+            </Carousel>
+          </section>
+        )}
+
+
+
         {listenAgain.length > 0 && (
           <section className="flex flex-col gap-4">
             <SectionHeader caption="Pick up where you left off" title="Listen again" />
