@@ -137,7 +137,6 @@ if (existsSync(activityPath)) {
         android.webkit.WebSettings settings = this.bridge.getWebView().getSettings();
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setDomStorageEnabled(true);
-        getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 `,
     );

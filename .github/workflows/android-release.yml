@@ -50,7 +50,13 @@ jobs:
             p{opacity:.7;font-size:14px;max-width:22rem;padding:0 1.5rem}
             h1{font-size:20px;letter-spacing:-.02em}
           </style></head>
-          <body><div><h1>IMUSIC</h1><p>You're offline. Reconnect to keep listening.</p></div></body></html>
+          <body><div><h1>IMUSIC</h1><p id="msg">You're offline. Reconnect to keep listening.</p></div>
+          <script>
+            function retry(){ location.replace('https://imusic-com.lovable.app/'); }
+            addEventListener('online', retry);
+            setInterval(function(){ if (navigator.onLine) retry(); }, 3000);
+          </script>
+          </body></html>
           HTML
 
       - uses: actions/setup-java@v4
