@@ -79,7 +79,7 @@ export function useApkDownload(release: ApkRelease | null) {
     if (typeof Notification === "undefined") return false;
     if (Notification.permission === "granted") return true;
     if (Notification.permission === "denied") return false;
-    if (askedPermission.current) return Notification.permission === "granted";
+    if (askedPermission.current) return false;
     askedPermission.current = true;
     try {
       return (await Notification.requestPermission()) === "granted";
@@ -126,7 +126,7 @@ export function useApkDownload(release: ApkRelease | null) {
     setProgress(next);
     if (next.phase !== "downloading") {
       if (next.phase !== "assembling" && next.phase !== "verifying") setSpeed(null);
-      sample.current = next.phase === "downloading" ? sample.current : null;
+      sample.current = null;
       return;
     }
     const now = Date.now();
