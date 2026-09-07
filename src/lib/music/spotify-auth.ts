@@ -35,9 +35,18 @@ export interface SpotifySession {
 }
 
 
+/**
+ * Where Spotify sends the user back.
+ *
+ * In the browser that is the site's own callback page. Inside the Android app
+ * the consent screen opens in the phone's browser (Spotify blocks embedded
+ * web views), so it returns through the app's own URL scheme instead.
+ */
 export function redirectUri(): string {
+  if (isNativeApp()) return `${NATIVE_URL_SCHEME}://spotify/callback`;
   return `${window.location.origin}/spotify/callback`;
 }
+
 
 export function readSession(): SpotifySession | null {
   if (typeof window === "undefined") return null;
