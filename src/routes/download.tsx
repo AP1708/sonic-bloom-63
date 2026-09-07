@@ -20,6 +20,8 @@ import { getLatestAndroidRelease } from "@/lib/apk/release.functions";
 import {
   ANDROID_RELEASES_URL,
   formatBytes,
+  formatDuration,
+  formatRate,
   formatReleaseDate,
   pickVariant,
 } from "@/lib/apk/release";
@@ -107,6 +109,31 @@ function DownloadPage() {
         }
       : null,
   );
+
+  // One human-readable line: bytes, percent, live speed and time remaining.
+  const rate = formatRate(download.speed);
+  const eta = formatDuration(download.remainingSeconds);
+  const statusLine =
+    download.phase === "preparing"
+      ? "Preparing download…"
+      : download.phase === "assembling"
+        ? "Finishing up…"
+        : download.phase === "verifying"
+          ? "Verifying the file…"
+          : download.phase === "paused"
+            ? `Paused · ${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
+                download.progress.totalBytes,
+              )} · ${download.percent ?? 0}%`
+            : [
+                `${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
+                  download.progress.totalBytes,
+                )}`,
+                `${download.percent ?? 0}%`,
+                rate,
+                eta ? `${eta} left` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
 
 
   return (
