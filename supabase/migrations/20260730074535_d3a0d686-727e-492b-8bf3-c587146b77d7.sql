@@ -6,4 +6,4 @@ CREATE POLICY "profiles_authenticated_read"
 ON public.profiles
 FOR SELECT
 TO authenticated
-USING (true);
+USING (auth.uid() = id);
