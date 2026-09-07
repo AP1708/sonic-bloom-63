@@ -14,6 +14,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as DownloadRouteImport } from './routes/download'
+import { Route as DesktopRouteImport } from './routes/desktop'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -59,6 +60,11 @@ const McpRoute = McpRouteImport.update({
 const DownloadRoute = DownloadRouteImport.update({
   id: '/download',
   path: '/download',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesktopRoute = DesktopRouteImport.update({
+  id: '/desktop',
+  path: '/desktop',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -175,6 +181,7 @@ const ApiPublicHooksYoutubeKeyHealthRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/desktop': typeof DesktopRoute
   '/download': typeof DownloadRoute
   '/mcp': typeof McpRoute
   '/search': typeof SearchRoute
@@ -202,6 +209,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/desktop': typeof DesktopRoute
   '/download': typeof DownloadRoute
   '/mcp': typeof McpRoute
   '/search': typeof SearchRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/desktop': typeof DesktopRoute
   '/download': typeof DownloadRoute
   '/mcp': typeof McpRoute
   '/search': typeof SearchRoute
@@ -260,6 +269,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/desktop'
     | '/download'
     | '/mcp'
     | '/search'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/desktop'
     | '/download'
     | '/mcp'
     | '/search'
@@ -315,6 +326,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/desktop'
     | '/download'
     | '/mcp'
     | '/search'
@@ -344,6 +356,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DesktopRoute: typeof DesktopRoute
   DownloadRoute: typeof DownloadRoute
   McpRoute: typeof McpRoute
   SearchRoute: typeof SearchRoute
@@ -398,6 +411,13 @@ declare module '@tanstack/react-router' {
       path: '/download'
       fullPath: '/download'
       preLoaderRoute: typeof DownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desktop': {
+      id: '/desktop'
+      path: '/desktop'
+      fullPath: '/desktop'
+      preLoaderRoute: typeof DesktopRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -575,6 +595,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DesktopRoute: DesktopRoute,
   DownloadRoute: DownloadRoute,
   McpRoute: McpRoute,
   SearchRoute: SearchRoute,
