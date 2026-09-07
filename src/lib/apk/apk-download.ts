@@ -217,8 +217,20 @@ export async function runResumableDownload(options: RunOptions): Promise<Blob> {
 
   emit("assembling");
   const file = await assemble(manifest, info.contentType);
-  await clearDownload(id);
   received = manifest.totalBytes;
+
+  const expected = options.expectedSha256?.trim().toLowerCase();
+  if (expected) {
+    emit("verifying");
+    const actual = await sha256Hex(file);
+    if (actual !== expected) {
+      // Keep nothing suspicious on disk; the next attempt starts clean.
+      await clearDownload(id);
+      throw new ChecksumMismatchError(expected, actual);
+    }
+  }
+
+  await clearDownload(id);
   emit("done");
   return file;
 }
