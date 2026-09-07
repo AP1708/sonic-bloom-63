@@ -108,9 +108,18 @@ export async function beginSpotifyLogin(clientId: string) {
   url.searchParams.set("scope", SPOTIFY_SCOPES);
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("code_challenge", await pkceChallenge(verifier));
+  if (isNativeApp()) {
+    // Spotify refuses to render its login inside an embedded web view, so hand
+    // the consent screen to the phone's own browser; it returns through the
+    // app URL scheme, which NativeBridge picks up.
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url: url.toString(), presentationStyle: "popover" });
+    return;
+  }
   const target = window.top ?? window;
   target.location.href = url.toString();
 }
+
 
 export async function completeSpotifyLogin(code: string): Promise<string> {
   const codeVerifier = sessionStorage.getItem(VERIFIER_KEY) ?? "";
