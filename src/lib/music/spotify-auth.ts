@@ -2,6 +2,8 @@ import {
   connectSpotifyWithCode,
   mintSpotifyAccessToken,
 } from "@/lib/music/connections.functions";
+import { isNativeApp, NATIVE_URL_SCHEME } from "@/lib/native/platform";
+
 
 /**
  * Browser-side Spotify user session (Authorization Code + PKCE).
