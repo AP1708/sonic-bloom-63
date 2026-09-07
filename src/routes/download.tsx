@@ -93,6 +93,8 @@ function DownloadPage() {
       ? { abi: "universal" as Abi, apkUrl: release.apkUrl, apkName: release.apkName, sizeBytes: release.sizeBytes }
       : null);
 
+  const expectedSha = shaFrom(release?.notes ?? null, selected?.apkName);
+
   const download = useApkDownload(
     release && selected
       ? {
@@ -101,6 +103,7 @@ function DownloadPage() {
           apkUrl: selected.apkUrl,
           apkName: selected.apkName,
           sizeBytes: selected.sizeBytes,
+          sha256: expectedSha,
         }
       : null,
   );
