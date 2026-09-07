@@ -364,20 +364,57 @@ function DownloadPage() {
 
         <section
           id="install"
-          className="surface-panel flex scroll-mt-24 flex-col gap-4 p-6 target:ring-1 target:ring-primary"
+          className="surface-panel flex scroll-mt-24 flex-col gap-5 p-6 target:ring-1 target:ring-primary"
         >
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             <Smartphone className="size-4 text-primary" />
-            How to install
+            Installing on your phone, step by step
           </h2>
-          <ol className="flex list-decimal flex-col gap-2 pl-5 text-sm text-muted-foreground">
-            <li>Download the APK on your Android phone.</li>
+
+          <ol className="flex list-decimal flex-col gap-3 pl-5 text-sm text-muted-foreground">
             <li>
-              Open it. Android will ask to allow installs from this source — turn that on for your
-              browser or file manager.
+              <span className="text-foreground">Tap Download above</span> and wait for the bar to
+              reach 100% and say the file was verified.
             </li>
-            <li>Tap Install, then open IMUSIC and sign in.</li>
+            <li>
+              <span className="text-foreground">Open the file.</span> Pull down your notifications
+              and tap the finished download, or open Files → Downloads and tap the{" "}
+              <code className="text-xs">.apk</code>.
+            </li>
+            <li>
+              <span className="text-foreground">Allow installs from this app.</span> Android asks
+              once. On Android 8 and newer: Settings → Apps → Special app access → Install unknown
+              apps → pick your browser (usually Chrome) or Files → turn on "Allow from this source".
+              Then come back and tap the file again.
+            </li>
+            <li>
+              <span className="text-foreground">Tap Install</span>, wait a few seconds, then tap
+              Open.
+            </li>
+            <li>
+              <span className="text-foreground">Sign in</span> with the same account you use here
+              and your playlists, likes and downloads are already there.
+            </li>
           </ol>
+
+          <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
+            <h3 className="text-xs font-semibold">If Play Protect shows a warning</h3>
+            <p className="text-xs text-muted-foreground">
+              That warning appears for every app installed outside the Play Store, including this
+              one. Tap "More details" then "Install anyway". Only install the file from this page —
+              it's the one whose fingerprint is listed above.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-lg border border-border p-4">
+            <h3 className="text-xs font-semibold">Checking the file is genuine</h3>
+            <p className="text-xs text-muted-foreground">
+              This page checks the downloaded file against the published SHA-256 fingerprint before
+              telling you it's ready. If the check fails, the file is deleted automatically and you
+              can simply download again.
+            </p>
+          </div>
+
           <p className="text-xs text-muted-foreground">
             Every release is signed with the same key, so new versions install straight over the old
             one without uninstalling.
