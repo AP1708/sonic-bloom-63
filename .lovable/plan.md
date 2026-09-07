@@ -1,37 +1,31 @@
-# Resumable APK download
+# Better APK download feedback: live speed, verified file, reliable notification
 
-Today the download card just sets `window.location.href` to the GitHub asset URL, so the browser owns the transfer and a dropped connection means starting over. This replaces that with an in-app chunked downloader that remembers progress and continues from where it stopped.
+Three improvements to the download page and the download engine behind it.
 
-## How it will work
+## 1. Live progress with speed and time remaining
 
-1. The APK is fetched in chunks with `Range: bytes=<start>-<end>` requests (8 MB per chunk).
-2. Each completed chunk is stored in IndexedDB, keyed by release version + asset URL, together with the total size and the server's `ETag`.
-3. If the tab is closed, the network drops, or the user hits Pause, the next attempt resumes from the first missing byte instead of byte 0.
-4. When all bytes are present, the chunks are joined into a single `Blob` and handed to the browser as a normal file save (`<a download>` + object URL), then the cached chunks are cleared.
-5. `ETag` mismatch or a new release version invalidates the stored chunks and restarts cleanly, so a partially downloaded old APK is never merged with a new one.
+- Track a rolling sample of bytes received over the last few seconds (smoothed, so the number does not jump around).
+- Expose download speed (e.g. "4.2 MB/s") and estimated time left (e.g. "about 1 min 20 s left") alongside the existing byte counts and percentage.
+- Show them under the progress bar while downloading; hide them while paused, and show "Paused" instead. During the final assembling step show "Finishing up…".
+- Keep the bar accessible: the spoken/announced label includes percent, speed and remaining time.
 
-## Cross-origin handling
+## 2. Notification permission asked up front
 
-GitHub asset downloads redirect to a storage host that does not reliably allow browser range reads from another origin. To make this dependable, downloads go through a same-origin streaming proxy route (`/api/public/apk`) that:
-- only accepts the known IMUSIC release repo asset URLs (allowlist, no open proxy),
-- forwards the client's `Range` header upstream and returns the upstream `206`/`200` response with `Content-Range`, `Content-Length`, `Accept-Ranges` and `ETag` intact.
+- When the user starts a download, ask for notification permission right away (a click-driven request, which browsers accept) instead of only at the end — so the completion notification actually appears the first time.
+- If permission is denied or notifications are unsupported, nothing breaks: the on-page success toast with "Open install page" remains the fallback, plus a persistent success panel on the page itself so a missed toast is still recoverable.
+- Only ask once per browser; never re-prompt if already denied.
 
-If the proxy or the server does not support ranges (`Accept-Ranges: none`), the downloader falls back to a single streamed request, and if that also fails it falls back to today's direct browser download so users are never blocked.
+## 3. Verify the file before declaring success
 
-## UI changes
+- Read the expected SHA-256 for the selected build from the release notes (already parsed on the page) and pass it into the download.
+- After the chunks are assembled, hash the file in the browser and compare.
+- Match: save the file, show the success toast + "Open install page" action, and fire the system notification.
+- Mismatch: do not save or notify. Show a clear error ("The downloaded file didn't match the official checksum"), discard the saved chunks, and offer Retry.
+- No checksum published for that build: download proceeds as today, and the page notes the file could not be verified.
 
-In the download card and the `/download` page:
-- Progress bar with percent, downloaded / total size, and live transfer state.
-- Buttons: **Download** → **Pause** / **Resume**, plus **Cancel** (clears cached chunks).
-- On reopening the app with a partial download present: "Resume download — 42% already downloaded".
-- Connection-drop errors auto-retry a chunk up to 3 times with backoff; after that an error state with a Retry button and an error toast.
-- ARIA: `role="progressbar"` with `aria-valuenow/valuemin/valuemax`, polite live region for state changes, explicit labels on pause/resume/cancel — matching the accessibility work already done on this card.
+## Technical notes
 
-## Technical details
-
-- `src/lib/android/apk-download.ts` — chunked range downloader: probes with a `HEAD`/`Range: bytes=0-0` request for size + `Accept-Ranges` + `ETag`, loops missing chunks with `AbortController`, emits progress events.
-- `src/lib/android/apk-download-store.ts` — IndexedDB store (`imusic-apk`) holding chunk blobs and a manifest record; reuses the existing offline IndexedDB patterns in `src/lib/offline/store.ts`.
-- `src/hooks/use-apk-download.ts` — React hook exposing `{ state, progress, bytesDone, totalBytes, start, pause, resume, cancel, error }`.
-- `src/routes/api/public/apk.ts` — server route proxying the allowlisted GitHub asset with range passthrough.
-- `src/components/apk/apk-download-card.tsx` and `src/routes/download.tsx` — wire the hook in, add progress + controls; keep the existing loading/retry/error behaviour for the release lookup itself.
-- Analytics: reuse the existing event tagging to record `apk_download_start`, `apk_download_resume`, `apk_download_complete`, `apk_download_failed`.
+- `src/lib/apk/apk-download.ts`: add optional `expectedSha256` to `runResumableDownload`; verify with `crypto.subtle.digest("SHA-256", …)` over the assembled blob before returning. Throw a distinct `ChecksumMismatchError`. Add a `verifying` phase to `ApkDownloadPhase` and emit progress for it.
+- `src/hooks/use-apk-download.ts`: accept `expectedSha256` on the release argument; add speed/ETA computation from timestamped progress samples (EMA over ~3 s window); request `Notification.requestPermission()` inside `start()`; handle `ChecksumMismatchError` by clearing the stored download, setting an error, and emitting an `apk_download_failed` analytics event with reason `checksum_mismatch`.
+- `src/routes/download.tsx`: pass the parsed per-variant SHA into `useApkDownload`; render speed/ETA/status text and a verified/unverified badge; keep existing ARIA attributes and add the new values to the progressbar label.
+- Reuse the existing `formatBytes` helper; add small `formatRate` / `formatDuration` helpers in `src/lib/apk/release.ts`.
