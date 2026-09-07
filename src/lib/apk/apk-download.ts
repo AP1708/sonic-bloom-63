@@ -24,6 +24,7 @@ export type ApkDownloadPhase =
   | "downloading"
   | "paused"
   | "assembling"
+  | "verifying"
   | "done"
   | "error";
 
@@ -103,6 +104,25 @@ export interface RunOptions {
   onProgress: (progress: ApkProgress) => void;
   /** Fired the first time a resumed download picks up existing bytes. */
   onResumed?: (receivedBytes: number) => void;
+  /** Expected SHA-256 (hex) from the release notes; verified before returning. */
+  expectedSha256?: string | null;
+}
+
+/** Thrown when the assembled file doesn't match the published checksum. */
+export class ChecksumMismatchError extends Error {
+  constructor(readonly expected: string, readonly actual: string) {
+    super("The downloaded file didn't match the official checksum.");
+    this.name = "ChecksumMismatchError";
+  }
+}
+
+/** Hex SHA-256 of a blob, using the browser's crypto engine. */
+export async function sha256Hex(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const digest = await crypto.subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -197,8 +217,20 @@ export async function runResumableDownload(options: RunOptions): Promise<Blob> {
 
   emit("assembling");
   const file = await assemble(manifest, info.contentType);
-  await clearDownload(id);
   received = manifest.totalBytes;
+
+  const expected = options.expectedSha256?.trim().toLowerCase();
+  if (expected) {
+    emit("verifying");
+    const actual = await sha256Hex(file);
+    if (actual !== expected) {
+      // Keep nothing suspicious on disk; the next attempt starts clean.
+      await clearDownload(id);
+      throw new ChecksumMismatchError(expected, actual);
+    }
+  }
+
+  await clearDownload(id);
   emit("done");
   return file;
 }

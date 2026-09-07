@@ -20,6 +20,8 @@ import { getLatestAndroidRelease } from "@/lib/apk/release.functions";
 import {
   ANDROID_RELEASES_URL,
   formatBytes,
+  formatDuration,
+  formatRate,
   formatReleaseDate,
   pickVariant,
 } from "@/lib/apk/release";
@@ -93,6 +95,8 @@ function DownloadPage() {
       ? { abi: "universal" as Abi, apkUrl: release.apkUrl, apkName: release.apkName, sizeBytes: release.sizeBytes }
       : null);
 
+  const expectedSha = shaFrom(release?.notes ?? null, selected?.apkName);
+
   const download = useApkDownload(
     release && selected
       ? {
@@ -101,9 +105,35 @@ function DownloadPage() {
           apkUrl: selected.apkUrl,
           apkName: selected.apkName,
           sizeBytes: selected.sizeBytes,
+          sha256: expectedSha,
         }
       : null,
   );
+
+  // One human-readable line: bytes, percent, live speed and time remaining.
+  const rate = formatRate(download.speed);
+  const eta = formatDuration(download.remainingSeconds);
+  const statusLine =
+    download.phase === "preparing"
+      ? "Preparing download…"
+      : download.phase === "assembling"
+        ? "Finishing up…"
+        : download.phase === "verifying"
+          ? "Verifying the file…"
+          : download.phase === "paused"
+            ? `Paused · ${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
+                download.progress.totalBytes,
+              )} · ${download.percent ?? 0}%`
+            : [
+                `${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
+                  download.progress.totalBytes,
+                )}`,
+                `${download.percent ?? 0}%`,
+                rate,
+                eta ? `${eta} left` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
 
 
   return (
@@ -231,7 +261,9 @@ function DownloadPage() {
                   <>
                     <div
                       role="progressbar"
-                      aria-label="APK download progress"
+                      aria-label={`APK download progress: ${download.percent ?? 0}%${
+                        statusLine ? `, ${statusLine}` : ""
+                      }`}
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-valuenow={download.percent ?? undefined}
@@ -251,21 +283,38 @@ function DownloadPage() {
                     >
                       {download.phase === "error"
                         ? (download.error ?? "Download interrupted — your progress is saved.")
-                        : download.phase === "preparing"
-                          ? "Preparing download…"
-                          : download.phase === "assembling"
-                            ? "Finishing up…"
-                            : `${formatBytes(download.progress.receivedBytes)} of ${formatBytes(
-                                download.progress.totalBytes,
-                              )} · ${download.percent ?? 0}%`}
+                        : statusLine}
                     </p>
                   </>
+                )}
+
+                {download.completed && (
+                  <div
+                    className="flex flex-col gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <p className="flex items-center gap-2 text-xs text-primary">
+                      <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
+                      {download.verified
+                        ? "Download complete and checksum verified."
+                        : "Download complete. No published checksum, so the file couldn't be verified."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={download.openInstallPage}
+                      className="self-start rounded-lg border border-primary px-3 py-1.5 text-xs text-primary transition-colors hover:bg-primary/10"
+                    >
+                      Open install page
+                    </button>
+                  </div>
                 )}
 
                 <p className="text-xs text-muted-foreground">
                   Downloads resume automatically if your connection drops — progress is kept on this
                   device.
                 </p>
+
               </div>
 
 

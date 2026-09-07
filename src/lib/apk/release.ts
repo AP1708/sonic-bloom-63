@@ -55,3 +55,22 @@ export function formatReleaseDate(value: string | null) {
     day: "numeric",
   });
 }
+
+/** "4.2 MB/s" style transfer rate. */
+export function formatRate(bytesPerSecond: number | null) {
+  if (!bytesPerSecond || bytesPerSecond <= 0) return null;
+  const mb = bytesPerSecond / (1024 * 1024);
+  return mb >= 1 ? `${mb.toFixed(1)} MB/s` : `${Math.round(bytesPerSecond / 1024)} KB/s`;
+}
+
+/** "about 1 min 20 s left" style remaining time. */
+export function formatDuration(seconds: number | null) {
+  if (seconds == null || !Number.isFinite(seconds) || seconds < 0) return null;
+  const total = Math.round(seconds);
+  if (total < 60) return `${Math.max(total, 1)} s`;
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  if (minutes < 60) return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} h ${minutes % 60} min`;
+}
