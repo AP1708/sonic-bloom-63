@@ -2,6 +2,8 @@ import {
   connectSpotifyWithCode,
   mintSpotifyAccessToken,
 } from "@/lib/music/connections.functions";
+import { isNativeApp, NATIVE_URL_SCHEME } from "@/lib/native/platform";
+
 
 /**
  * Browser-side Spotify user session (Authorization Code + PKCE).
@@ -33,9 +35,18 @@ export interface SpotifySession {
 }
 
 
+/**
+ * Where Spotify sends the user back.
+ *
+ * In the browser that is the site's own callback page. Inside the Android app
+ * the consent screen opens in the phone's browser (Spotify blocks embedded
+ * web views), so it returns through the app's own URL scheme instead.
+ */
 export function redirectUri(): string {
+  if (isNativeApp()) return `${NATIVE_URL_SCHEME}://spotify/callback`;
   return `${window.location.origin}/spotify/callback`;
 }
+
 
 export function readSession(): SpotifySession | null {
   if (typeof window === "undefined") return null;
@@ -97,9 +108,18 @@ export async function beginSpotifyLogin(clientId: string) {
   url.searchParams.set("scope", SPOTIFY_SCOPES);
   url.searchParams.set("code_challenge_method", "S256");
   url.searchParams.set("code_challenge", await pkceChallenge(verifier));
+  if (isNativeApp()) {
+    // Spotify refuses to render its login inside an embedded web view, so hand
+    // the consent screen to the phone's own browser; it returns through the
+    // app URL scheme, which NativeBridge picks up.
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url: url.toString(), presentationStyle: "popover" });
+    return;
+  }
   const target = window.top ?? window;
   target.location.href = url.toString();
 }
+
 
 export async function completeSpotifyLogin(code: string): Promise<string> {
   const codeVerifier = sessionStorage.getItem(VERIFIER_KEY) ?? "";

@@ -81,3 +81,66 @@ console.log(
     ? "Release signing: enabled (keystore provided)."
     : "Release signing: disabled (no keystore secrets) — output will be unsigned.",
 );
+
+/* ------------------------------------------------------------------ *
+ * AndroidManifest: playback permissions + Spotify sign-in deep link.
+ * ------------------------------------------------------------------ */
+const manifestPath = "android/app/src/main/AndroidManifest.xml";
+if (existsSync(manifestPath)) {
+  let manifest = readFileSync(manifestPath, "utf8");
+
+  const permissions = [
+    "android.permission.INTERNET",
+    "android.permission.ACCESS_NETWORK_STATE",
+    "android.permission.WAKE_LOCK",
+    "android.permission.FOREGROUND_SERVICE",
+    "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+    "android.permission.POST_NOTIFICATIONS",
+  ];
+  const missing = permissions
+    .filter((name) => !manifest.includes(`"${name}"`))
+    .map((name) => `    <uses-permission android:name="${name}" />`)
+    .join("\n");
+  if (missing) manifest = manifest.replace("</manifest>", `${missing}\n</manifest>`);
+
+  // Custom-scheme callback: Spotify's consent screen runs in the phone browser
+  // and returns to app.lovable.imusic://spotify/callback.
+  if (!manifest.includes("app.lovable.imusic\" />")) {
+    const intentFilter = `
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="app.lovable.imusic" />
+            </intent-filter>`;
+    manifest = manifest.replace(/(\n\s*<\/activity>)/, `${intentFilter}$1`);
+  }
+
+  writeFileSync(manifestPath, manifest);
+  console.log("Patched AndroidManifest.xml: playback permissions + deep link.");
+}
+
+/* ------------------------------------------------------------------ *
+ * MainActivity: let audio start without an extra tap and keep the
+ * WebView alive while the screen is off.
+ * ------------------------------------------------------------------ */
+const activityPath = "android/app/src/main/java/app/lovable/imusic/MainActivity.java";
+if (existsSync(activityPath)) {
+  let activity = readFileSync(activityPath, "utf8");
+  if (!activity.includes("mediaPlaybackRequiresUserGesture")) {
+    activity = activity.replace(
+      /public class MainActivity extends BridgeActivity \{/,
+      `public class MainActivity extends BridgeActivity {
+    @Override
+    public void onStart() {
+        super.onStart();
+        android.webkit.WebSettings settings = this.bridge.getWebView().getSettings();
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setDomStorageEnabled(true);
+    }
+`,
+    );
+    writeFileSync(activityPath, activity);
+    console.log("Patched MainActivity.java: media autoplay + wake handling.");
+  }
+}

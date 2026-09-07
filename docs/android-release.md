@@ -54,3 +54,30 @@ Only step 4 again, with a higher version number.
 The **Desktop release** workflow does the same for Windows, macOS and Linux and
 needs no secrets. Run it from the Actions tab; the results show up on
 `/desktop`.
+
+## Spotify sign-in from inside the app
+
+Spotify blocks its login screen inside embedded app views, so the Android app
+opens the consent page in the phone's own browser and receives the result back
+through a private app link.
+
+In the [Spotify developer dashboard](https://developer.spotify.com/dashboard) →
+your app → **Settings** → **Redirect URIs**, make sure both entries exist:
+
+```
+https://imusic-com.lovable.app/spotify/callback
+app.lovable.imusic://spotify/callback
+```
+
+Save, then reinstall/relaunch the app. Tapping "Connect Spotify" opens the
+browser, and after approving you land back in IMUSIC already connected.
+
+## Playback on the phone
+
+The release script patches the native project so that:
+
+- audio may start on the first tap (no silent player),
+- the app declares `WAKE_LOCK`, `FOREGROUND_SERVICE`,
+  `FOREGROUND_SERVICE_MEDIA_PLAYBACK` and `POST_NOTIFICATIONS`, so playback keeps
+  running with the screen off and lock-screen controls appear,
+- the offline screen retries automatically as soon as the connection returns.
