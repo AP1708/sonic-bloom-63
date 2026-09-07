@@ -6,10 +6,12 @@ import {
   Home,
   Library,
   ListPlus,
+  Monitor,
   Search,
   Music4,
   Mic2,
   ShieldCheck,
+  UserRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePlaylists } from "@/hooks/use-library";
@@ -121,12 +123,35 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </div>
 
+      {user ? (
+        <Link
+          to="/account"
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors",
+            pathname.startsWith("/account")
+              ? "bg-surface-raised text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <UserRound className="size-4" /> Your account
+        </Link>
+      ) : null}
+
       <Link
         to="/search"
         onClick={onNavigate}
         className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
       >
         <Compass className="size-4" /> Explore sources
+      </Link>
+
+      <Link
+        to="/desktop"
+        onClick={onNavigate}
+        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <Monitor className="size-4" /> Desktop app
       </Link>
     </nav>
   );

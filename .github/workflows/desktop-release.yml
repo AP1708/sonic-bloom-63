@@ -1,0 +1,58 @@
+name: Desktop release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Add packaging tools
+        run: bun add -d electron @electron/packager
+
+      - name: Package Windows, macOS and Linux
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION="${VERSION#v}"
+          for TARGET in "win32 x64" "darwin x64" "darwin arm64" "linux x64"; do
+            set -- $TARGET
+            bunx @electron/packager . "IMUSIC" \
+              --platform="$1" --arch="$2" \
+              --app-version="$VERSION" \
+              --out=desktop-release --overwrite \
+              --ignore='node_modules' \
+              --ignore='^/src' --ignore='^/public' \
+              --ignore='^/android' --ignore='^/desktop-release'
+          done
+
+      - name: Zip the packages
+        run: |
+          cd desktop-release
+          for DIR in */; do
+            NAME="${DIR%/}"
+            zip -qr "../IMUSIC-${NAME#IMUSIC-}.zip" "$NAME"
+          done
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-v${{ github.event.inputs.version }}
+          name: IMUSIC desktop v${{ github.event.inputs.version }}
+          files: IMUSIC-*.zip
