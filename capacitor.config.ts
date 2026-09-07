@@ -15,11 +15,28 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
     backgroundColor: "#0A0A0B",
+    webContentsDebuggingEnabled: false,
+    // Lets the web app detect the native shell (see src/lib/native/platform.ts).
+    appendUserAgent: "IMUSICApp",
   },
   server: {
     url: "https://imusic-com.lovable.app",
     cleartext: false,
     androidScheme: "https",
+  },
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: true,
+      launchShowDuration: 800,
+      backgroundColor: "#0A0A0B",
+      androidSplashResourceName: "splash",
+      showSpinner: false,
+    },
+    StatusBar: {
+      style: "DARK",
+      backgroundColor: "#0A0A0B",
+      overlaysWebView: false,
+    },
   },
 };
 
