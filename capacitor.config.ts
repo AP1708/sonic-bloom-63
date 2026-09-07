@@ -17,7 +17,7 @@ const config: CapacitorConfig = {
     backgroundColor: "#0A0A0B",
   },
   server: {
-    url: "https://sonic-bloom-63.lovable.app",
+    url: "https://imusic-com.lovable.app",
     cleartext: false,
     androidScheme: "https",
   },
