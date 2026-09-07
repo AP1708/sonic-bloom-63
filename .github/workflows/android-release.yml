@@ -75,11 +75,13 @@ jobs:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/imusic-release.keystore"
+            printf '%s' "$KEYSTORE_B64" | tr -d '\n' | base64 -d > "$RUNNER_TEMP/imusic-release.keystore"
             echo "path=$RUNNER_TEMP/imusic-release.keystore" >> "$GITHUB_OUTPUT"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::No ANDROID_KEYSTORE_BASE64 secret — the APK will be unsigned."
             echo "path=" >> "$GITHUB_OUTPUT"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Configure version and signing
@@ -101,7 +103,10 @@ jobs:
 
       - name: Verify signatures and rename per-ABI builds
         id: apk
+        env:
+          SIGNED: ${{ steps.keystore.outputs.signed }}
         run: |
+          set -euo pipefail
           VERSION="${{ steps.version.outputs.version }}"
           BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
           mkdir -p release-assets
@@ -117,7 +122,7 @@ jobs:
             esac
             OUT="release-assets/imusic-$VERSION-$ABI.apk"
             cp "$APK" "$OUT"
-            if [ -n "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
+            if [ "$SIGNED" = "true" ]; then
               "$BUILD_TOOLS/apksigner" verify --print-certs "$OUT"
             fi
             SHA=$(sha256sum "$OUT" | cut -d' ' -f1)
