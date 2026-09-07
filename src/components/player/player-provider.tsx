@@ -119,7 +119,16 @@ interface PlayerStatus {
   activeSource: "spotify" | "stream" | "youtube" | "preview" | null;
 }
 
-const PlayerContext = createContext<(PlayerState & PlayerActions & PlayerStatus) | null>(null);
+type PlayerContextValue = PlayerState & PlayerActions & PlayerStatus;
+
+// Kept on globalThis so a hot-reloaded copy of this module reuses the same
+// context instance instead of orphaning consumers rendered by the old copy.
+const contextStore = globalThis as unknown as {
+  __imusicPlayerContext?: React.Context<PlayerContextValue | null>;
+};
+const PlayerContext =
+  contextStore.__imusicPlayerContext ??
+  (contextStore.__imusicPlayerContext = createContext<PlayerContextValue | null>(null));
 
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
