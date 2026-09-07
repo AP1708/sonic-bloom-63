@@ -1,9 +1,2 @@
-DROP POLICY IF EXISTS "profiles_public_read" ON public.profiles;
-
-REVOKE ALL ON public.profiles FROM anon;
-
-CREATE POLICY "profiles_authenticated_read"
-ON public.profiles
-FOR SELECT
-TO authenticated
-USING (auth.uid() = id);
+-- This migration is no longer needed as fixes are in the initial migration
+-- All RLS policies for profiles are now secure in the initial setup
