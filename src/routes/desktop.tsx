@@ -105,7 +105,7 @@ function DesktopPage() {
                 ))}
               </div>
 
-              {recommended.length && others.length ? (
+              {recommended.length > 0 && others.length > 0 ? (
                 <details className="text-sm">
                   <summary className="cursor-pointer text-xs text-muted-foreground">
                     Other systems
